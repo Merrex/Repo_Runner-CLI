@@ -254,17 +254,22 @@ class HealthAgent:
     def check_services(self, structure):
         """Check if each detected service is running."""
         results = []
+        port_config = structure.get('port_config', {})
+        allocated_ports = port_config.get('allocated_ports', {})
+        
         for svc in structure.get('services', []):
             if svc['type'] == 'python':
+                port = allocated_ports.get('backend', 8000)
                 try:
-                    r = requests.get('http://localhost:8000')
-                    results.append({'service': svc, 'status': r.status_code})
+                    r = requests.get(f'http://localhost:{port}', timeout=5)
+                    results.append({'service': svc, 'status': r.status_code, 'port': port})
                 except Exception as e:
-                    results.append({'service': svc, 'status': 'down', 'error': str(e)})
+                    results.append({'service': svc, 'status': 'down', 'error': str(e), 'port': port})
             elif svc['type'] == 'node':
+                port = allocated_ports.get('frontend', 3000)
                 try:
-                    r = requests.get('http://localhost:3000')
-                    results.append({'service': svc, 'status': r.status_code})
+                    r = requests.get(f'http://localhost:{port}', timeout=5)
+                    results.append({'service': svc, 'status': r.status_code, 'port': port})
                 except Exception as e:
-                    results.append({'service': svc, 'status': 'down', 'error': str(e)})
+                    results.append({'service': svc, 'status': 'down', 'error': str(e), 'port': port})
         return results 

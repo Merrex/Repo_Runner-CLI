@@ -40,6 +40,7 @@ setup(
         "transformers>=4.30.0",
         "torch>=2.0.0",
         "accelerate>=0.20.0",
+        "psutil>=5.8.0",
     ],
     extras_require={
         "dev": [

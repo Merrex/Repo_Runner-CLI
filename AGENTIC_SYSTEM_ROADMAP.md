@@ -8,7 +8,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 ## ✅ **COMPLETED** (What We've Built)
 
 ### Core Architecture
-- [x] **Modular Agent System**: DetectionAgent, SetupAgent, RunnerAgent, HealthAgent, FixerAgent, DBAgent
+- [x] **Modular Agent System**: DetectionAgent, SetupAgent, RunnerAgent, HealthAgent, FixerAgent, DBAgent, **PortManagerAgent**
 - [x] **LLM Integration**: Intelligent code generation and analysis using HuggingFace models
 - [x] **CLI Interface**: `repo_runner run <repo_path>` command
 - [x] **Basic Multi-Service Detection**: Detects backend (Python) and frontend (Node) services
@@ -23,6 +23,14 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [x] **Service Health Checks**: HealthAgent checks each service on its expected port
 - [x] **Auto-Fixing**: FixerAgent adds missing `__init__.py` files and suggests dependency fixes
 - [x] **Robust LLM Handling**: Better sequence length handling and fallback responses
+- [x] **Port Management**: PortManagerAgent handles port allocation, conflict resolution, and process management
+
+### Port Management Features (NEW)
+- [x] **Port Availability Checking**: Check if ports are free before starting services
+- [x] **Process Management**: Kill processes occupying required ports
+- [x] **Dynamic Port Allocation**: Find free ports in configured ranges
+- [x] **Port Configuration**: Allocate appropriate ports for each service type
+- [x] **Port Validation**: Ensure no port conflicts between services
 
 ---
 
@@ -49,6 +57,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Environment File Detection**: Auto-detect `.env` files and configure environment
 - [ ] **Missing File Detection**: Detect missing critical files (Dockerfile, requirements.txt, etc.)
 - [ ] **Dependency Conflict Resolution**: Handle version conflicts and suggest solutions
+- [ ] **Advanced Port Management**: Handle custom port configurations in config files
 
 ### Phase 2: Advanced Startup & Configuration (Week 2)
 - [ ] **Service Configuration**: Auto-generate missing configuration files
@@ -56,6 +65,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Process Management**: Better subprocess handling with proper cleanup
 - [ ] **Service Communication**: Ensure services can communicate (CORS, API endpoints)
 - [ ] **Development vs Production**: Detect and configure for different environments
+- [ ] **Port Range Management**: Configure custom port ranges for different environments
 
 ### Phase 3: Intelligent Troubleshooting (Week 3)
 - [ ] **Error Pattern Recognition**: Use LLM to analyze error logs and suggest fixes
@@ -63,6 +73,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Service Recovery**: Restart failed services with different configurations
 - [ ] **Performance Monitoring**: Monitor service performance and suggest optimizations
 - [ ] **Log Analysis**: Parse and analyze service logs for issues
+- [ ] **Port Conflict Resolution**: Automatically resolve port conflicts with intelligent port allocation
 
 ### Phase 4: Cloud Deployment Preparation (Week 4)
 - [ ] **Dockerfile Generation**: Auto-generate Dockerfiles for services
@@ -70,6 +81,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Cloud Configuration**: Detect and prepare for AWS, GCP, Azure deployment
 - [ ] **Environment Validation**: Validate that the app is ready for production
 - [ ] **Deployment Scripts**: Generate deployment scripts and documentation
+- [ ] **Port Mapping for Containers**: Handle port mapping for Docker containers
 
 ### Phase 5: Advanced Intelligence (Week 5)
 - [ ] **Code Analysis**: Analyze code quality and suggest improvements
@@ -77,6 +89,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Performance Optimization**: Suggest performance improvements
 - [ ] **Testing Integration**: Run tests and report results
 - [ ] **Documentation Generation**: Auto-generate README and setup instructions
+- [ ] **Port Security**: Validate port security and suggest secure configurations
 
 ### Phase 6: User Experience & Integration (Week 6)
 - [ ] **Interactive Mode**: Interactive prompts for user decisions
@@ -84,6 +97,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Web Dashboard**: Optional web interface for monitoring
 - [ ] **Plugin System**: Allow custom agents and extensions
 - [ ] **CI/CD Integration**: Integrate with GitHub Actions, GitLab CI, etc.
+- [ ] **Port Monitoring Dashboard**: Real-time port status monitoring
 
 ---
 
@@ -116,6 +130,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Detection Accuracy**: 95%+ accurate service detection
 - [ ] **Auto-Fix Rate**: 80%+ of common issues auto-fixed
 - [ ] **Startup Time**: <30 seconds for typical repos
+- [ ] **Port Conflict Resolution**: 95%+ of port conflicts automatically resolved
 
 ### User Experience
 - [ ] **Clear Feedback**: Users always know what's happening
@@ -132,6 +147,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 3. **Add Docker Validation**: Check if Docker Compose is actually valid
 4. **Improve Error Messages**: Make error messages more actionable
 5. **Add Service Dependencies**: Handle startup order properly
+6. **Test Port Management**: Verify port allocation and conflict resolution works
 
 ---
 
@@ -143,12 +159,14 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - Missing `__init__.py` files break Python imports
 - Services need to be started in correct directories
 - Port conflicts need to be handled
+- Services need proper port configuration
 
 ### Lessons Learned
 - Rule-based detection is more reliable than LLM-only
 - Fallback mechanisms are crucial for robustness
 - Service-specific error handling improves success rate
 - Clear progress feedback helps users understand what's happening
+- Port management is critical for multi-service applications
 
 ---
 
@@ -158,7 +176,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 A system that can:
 1. **Analyze any repository** and understand its structure
 2. **Automatically set up** all dependencies and configurations
-3. **Start all services** with proper error handling
+3. **Start all services** with proper error handling and port management
 4. **Monitor and maintain** running services
 5. **Auto-fix common issues** without user intervention
 6. **Prepare for deployment** to any cloud platform
@@ -170,6 +188,7 @@ A system that can:
 - Provides clear, actionable feedback
 - Handles edge cases gracefully
 - Scales to large, complex repositories
+- Automatically resolves port conflicts
 
 ---
 

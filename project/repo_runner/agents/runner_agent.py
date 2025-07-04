@@ -139,16 +139,21 @@ class RunnerAgent:
     def _start_python_app(self, structure, mode, repo_path):
         """Start Python application."""
         try:
+            # Get port configuration
+            port_config = structure.get('port_config', {})
+            allocated_ports = port_config.get('allocated_ports', {})
+            backend_port = allocated_ports.get('backend', 8000)
+            
             # Rule-based Python command selection
             python_cmd = None
             if os.path.exists(os.path.join(repo_path, 'main.py')):
-                python_cmd = 'python main.py'
+                python_cmd = f'python3 main.py --port {backend_port}'
             elif os.path.exists(os.path.join(repo_path, 'app.py')):
-                python_cmd = 'python app.py'
+                python_cmd = f'python3 app.py --port {backend_port}'
             elif os.path.exists(os.path.join(repo_path, 'manage.py')):
-                python_cmd = 'python manage.py runserver'
+                python_cmd = f'python3 manage.py runserver 0.0.0.0:{backend_port}'
             else:
-                python_cmd = 'python -m http.server 8000'  # Fallback
+                python_cmd = f'python3 -m http.server {backend_port}'  # Fallback
             
             print(f"🚀 Starting Python application with: {python_cmd}")
             
@@ -170,8 +175,8 @@ class RunnerAgent:
                 return {
                     'started_services': ['python'],
                     'processes': [{'type': 'python', 'pid': process.pid, 'command': python_cmd}],
-                    'ports': [8000],  # Default port
-                    'urls': ['http://localhost:8000'],
+                    'ports': [backend_port],
+                    'urls': [f'http://localhost:{backend_port}'],
                     'python_command': python_cmd,
                     'status': 'running'
                 }
@@ -189,6 +194,11 @@ class RunnerAgent:
     def _start_node_app(self, structure, mode, repo_path):
         """Start Node.js application."""
         try:
+            # Get port configuration
+            port_config = structure.get('port_config', {})
+            allocated_ports = port_config.get('allocated_ports', {})
+            frontend_port = allocated_ports.get('frontend', 3000)
+            
             # Rule-based Node.js command selection
             node_cmd = None
             package_json_path = os.path.join(repo_path, 'package.json')
@@ -200,21 +210,21 @@ class RunnerAgent:
                         package_data = json.load(f)
                         scripts = package_data.get('scripts', {})
                         if 'start' in scripts:
-                            node_cmd = 'npm start'
+                            node_cmd = f'npm start -- --port {frontend_port}'
                         elif 'dev' in scripts:
-                            node_cmd = 'npm run dev'
+                            node_cmd = f'npm run dev -- --port {frontend_port}'
                         else:
-                            node_cmd = 'npm start'
+                            node_cmd = f'npm start -- --port {frontend_port}'
                 except:
-                    node_cmd = 'npm start'
+                    node_cmd = f'npm start -- --port {frontend_port}'
             else:
                 # Look for common entry points
                 if os.path.exists(os.path.join(repo_path, 'app.js')):
-                    node_cmd = 'node app.js'
+                    node_cmd = f'node app.js --port {frontend_port}'
                 elif os.path.exists(os.path.join(repo_path, 'server.js')):
-                    node_cmd = 'node server.js'
+                    node_cmd = f'node server.js --port {frontend_port}'
                 else:
-                    node_cmd = 'npm start'
+                    node_cmd = f'npm start -- --port {frontend_port}'
             
             print(f"🚀 Starting Node.js application with: {node_cmd}")
             
@@ -236,8 +246,8 @@ class RunnerAgent:
                 return {
                     'started_services': ['node'],
                     'processes': [{'type': 'node', 'pid': process.pid, 'command': node_cmd}],
-                    'ports': [3000],  # Default port
-                    'urls': ['http://localhost:3000'],
+                    'ports': [frontend_port],
+                    'urls': [f'http://localhost:{frontend_port}'],
                     'node_command': node_cmd,
                     'status': 'running'
                 }
