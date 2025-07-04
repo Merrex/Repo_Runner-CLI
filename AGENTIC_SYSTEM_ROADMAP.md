@@ -9,6 +9,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 
 ### Core Architecture
 - [x] **Modular Agent System**: DetectionAgent, SetupAgent, RunnerAgent, HealthAgent, FixerAgent, DBAgent, **PortManagerAgent**
+- [x] **Intelligent Orchestrator**: Dynamic decision-making with checkpoint-based workflow management
 - [x] **LLM Integration**: Intelligent code generation and analysis using HuggingFace models
 - [x] **CLI Interface**: `repo_runner run <repo_path>` command
 - [x] **Basic Multi-Service Detection**: Detects backend (Python) and frontend (Node) services
@@ -25,7 +26,15 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [x] **Robust LLM Handling**: Better sequence length handling and fallback responses
 - [x] **Port Management**: PortManagerAgent handles port allocation, conflict resolution, and process management
 
-### Port Management Features (NEW)
+### Intelligent Orchestrator Features (NEW)
+- [x] **Dynamic Agent Selection**: Orchestrator decides which agents to use based on real-time conditions
+- [x] **Checkpoint-Based Workflow**: 7-phase workflow with intelligent decision points
+- [x] **Adaptive Execution**: Workflow adapts based on agent results and conditions
+- [x] **Retry Logic**: Automatic retry with different approaches when phases fail
+- [x] **Real-Time Decision Making**: Each phase can trigger additional agents as needed
+- [x] **Comprehensive Reporting**: Detailed reports with workflow state and checkpoint results
+
+### Port Management Features
 - [x] **Port Availability Checking**: Check if ports are free before starting services
 - [x] **Process Management**: Kill processes occupying required ports
 - [x] **Dynamic Port Allocation**: Find free ports in configured ranges
@@ -58,6 +67,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Missing File Detection**: Detect missing critical files (Dockerfile, requirements.txt, etc.)
 - [ ] **Dependency Conflict Resolution**: Handle version conflicts and suggest solutions
 - [ ] **Advanced Port Management**: Handle custom port configurations in config files
+- [ ] **Orchestrator Learning**: Add machine learning to improve decision-making over time
 
 ### Phase 2: Advanced Startup & Configuration (Week 2)
 - [ ] **Service Configuration**: Auto-generate missing configuration files
@@ -66,6 +76,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Service Communication**: Ensure services can communicate (CORS, API endpoints)
 - [ ] **Development vs Production**: Detect and configure for different environments
 - [ ] **Port Range Management**: Configure custom port ranges for different environments
+- [ ] **Dynamic Workflow Adaptation**: Orchestrator learns from successful patterns
 
 ### Phase 3: Intelligent Troubleshooting (Week 3)
 - [ ] **Error Pattern Recognition**: Use LLM to analyze error logs and suggest fixes
@@ -74,6 +85,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Performance Monitoring**: Monitor service performance and suggest optimizations
 - [ ] **Log Analysis**: Parse and analyze service logs for issues
 - [ ] **Port Conflict Resolution**: Automatically resolve port conflicts with intelligent port allocation
+- [ ] **Predictive Orchestration**: Orchestrator predicts issues before they occur
 
 ### Phase 4: Cloud Deployment Preparation (Week 4)
 - [ ] **Dockerfile Generation**: Auto-generate Dockerfiles for services
@@ -82,6 +94,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Environment Validation**: Validate that the app is ready for production
 - [ ] **Deployment Scripts**: Generate deployment scripts and documentation
 - [ ] **Port Mapping for Containers**: Handle port mapping for Docker containers
+- [ ] **Cloud-Aware Orchestration**: Orchestrator adapts workflow for cloud deployment
 
 ### Phase 5: Advanced Intelligence (Week 5)
 - [ ] **Code Analysis**: Analyze code quality and suggest improvements
@@ -90,6 +103,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Testing Integration**: Run tests and report results
 - [ ] **Documentation Generation**: Auto-generate README and setup instructions
 - [ ] **Port Security**: Validate port security and suggest secure configurations
+- [ ] **AI-Powered Orchestration**: Orchestrator uses advanced AI for complex decisions
 
 ### Phase 6: User Experience & Integration (Week 6)
 - [ ] **Interactive Mode**: Interactive prompts for user decisions
@@ -98,6 +112,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Plugin System**: Allow custom agents and extensions
 - [ ] **CI/CD Integration**: Integrate with GitHub Actions, GitLab CI, etc.
 - [ ] **Port Monitoring Dashboard**: Real-time port status monitoring
+- [ ] **Orchestrator Dashboard**: Visual workflow monitoring and control
 
 ---
 
@@ -131,6 +146,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Auto-Fix Rate**: 80%+ of common issues auto-fixed
 - [ ] **Startup Time**: <30 seconds for typical repos
 - [ ] **Port Conflict Resolution**: 95%+ of port conflicts automatically resolved
+- [ ] **Orchestrator Efficiency**: 90%+ of workflow decisions are optimal
 
 ### User Experience
 - [ ] **Clear Feedback**: Users always know what's happening
@@ -148,6 +164,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 4. **Improve Error Messages**: Make error messages more actionable
 5. **Add Service Dependencies**: Handle startup order properly
 6. **Test Port Management**: Verify port allocation and conflict resolution works
+7. **Test Orchestrator Intelligence**: Verify dynamic decision-making works correctly
 
 ---
 
@@ -167,6 +184,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - Service-specific error handling improves success rate
 - Clear progress feedback helps users understand what's happening
 - Port management is critical for multi-service applications
+- Dynamic decision-making significantly improves workflow efficiency
 
 ---
 
@@ -181,6 +199,7 @@ A system that can:
 5. **Auto-fix common issues** without user intervention
 6. **Prepare for deployment** to any cloud platform
 7. **Provide clear feedback** and actionable next steps
+8. **Adapt workflow dynamically** based on real-time conditions
 
 ### Success Criteria
 - Works with 95%+ of typical web applications
@@ -189,6 +208,7 @@ A system that can:
 - Handles edge cases gracefully
 - Scales to large, complex repositories
 - Automatically resolves port conflicts
+- Makes intelligent decisions at each workflow checkpoint
 
 ---
 
