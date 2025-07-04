@@ -6,27 +6,27 @@ import torch
 # You can set a different model (and token/key) for each agent here.
 AGENT_LLM_CONFIG = {
     'detection_agent': {
-        'model_name': os.getenv('DETECTION_MODEL', 'HuggingFaceH4/zephyr-1.3b'),
+        'model_name': os.getenv('DETECTION_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('DETECTION_TOKEN', None),
     },
     'requirements_agent': {
-        'model_name': os.getenv('REQUIREMENTS_MODEL', 'mistralai/Mistral-7B-Instruct-v0.2'),
+        'model_name': os.getenv('REQUIREMENTS_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('REQUIREMENTS_TOKEN', None),
     },
     'setup_agent': {
-        'model_name': os.getenv('SETUP_MODEL', 'mistralai/Mistral-7B-Instruct-v0.2'),
+        'model_name': os.getenv('SETUP_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('SETUP_TOKEN', None),
     },
     'fixer_agent': {
-        'model_name': os.getenv('FIXER_MODEL', 'WizardLM/WizardCoder-1B-V1.0'),
+        'model_name': os.getenv('FIXER_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('FIXER_TOKEN', None),
     },
     'db_agent': {
-        'model_name': os.getenv('DB_MODEL', 'mistralai/Mistral-7B-Instruct-v0.2'),
+        'model_name': os.getenv('DB_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('DB_TOKEN', None),
     },
     'health_agent': {
-        'model_name': os.getenv('HEALTH_MODEL', 'HuggingFaceH4/zephyr-1.3b'),
+        'model_name': os.getenv('HEALTH_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('HEALTH_TOKEN', None),
     },
 }
