@@ -11,6 +11,9 @@ class RunnerAgent:
         """Start the application using LLM for intelligent execution."""
         files = structure.get('files', {})
         
+        # Get the repository path from structure
+        repo_path = structure.get('repo_path', '.')
+        
         runner_results = {
             'started_services': [],
             'processes': [],
@@ -25,13 +28,13 @@ class RunnerAgent:
         runner_results['start_method'] = start_method
         
         if start_method == 'docker':
-            result = self._start_with_docker(structure, mode)
+            result = self._start_with_docker(structure, mode, repo_path)
         elif start_method == 'python':
-            result = self._start_python_app(structure, mode)
+            result = self._start_python_app(structure, mode, repo_path)
         elif start_method == 'node':
-            result = self._start_node_app(structure, mode)
+            result = self._start_node_app(structure, mode, repo_path)
         else:
-            result = self._start_generic_app(structure, mode)
+            result = self._start_generic_app(structure, mode, repo_path)
         
         runner_results.update(result)
         
@@ -69,7 +72,7 @@ class RunnerAgent:
         valid_methods = ['docker', 'python', 'node', 'generic']
         return method if method in valid_methods else 'generic'
     
-    def _start_with_docker(self, structure, mode):
+    def _start_with_docker(self, structure, mode, repo_path):
         """Start application using Docker."""
         try:
             prompt = f"""
@@ -94,26 +97,43 @@ class RunnerAgent:
             
             docker_cmd = generate_code_with_llm(prompt, agent_name='setup_agent')
             
+            print(f"🚀 Starting Docker application with: {docker_cmd}")
+            
             # Execute Docker command
             process = subprocess.Popen(
                 docker_cmd.split(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                cwd=repo_path
             )
             
-            return {
-                'started_services': ['docker'],
-                'processes': [{'type': 'docker', 'pid': process.pid, 'command': docker_cmd}],
-                'ports': [8000],  # Default port
-                'urls': ['http://localhost:8000'],
-                'docker_command': docker_cmd
-            }
+            # Wait a bit for the process to start
+            time.sleep(2)
+            
+            # Check if process is still running
+            if process.poll() is None:
+                print("✅ Docker application started successfully!")
+                return {
+                    'started_services': ['docker'],
+                    'processes': [{'type': 'docker', 'pid': process.pid, 'command': docker_cmd}],
+                    'ports': [8000],  # Default port
+                    'urls': ['http://localhost:8000'],
+                    'docker_command': docker_cmd,
+                    'status': 'running'
+                }
+            else:
+                stdout, stderr = process.communicate()
+                return {
+                    'errors': [f"Docker start failed: {stderr}"],
+                    'docker_command': docker_cmd,
+                    'status': 'failed'
+                }
             
         except Exception as e:
             return {'errors': [f"Docker start failed: {e}"]}
     
-    def _start_python_app(self, structure, mode):
+    def _start_python_app(self, structure, mode, repo_path):
         """Start Python application."""
         try:
             prompt = f"""
@@ -141,26 +161,43 @@ class RunnerAgent:
             
             python_cmd = generate_code_with_llm(prompt, agent_name='setup_agent')
             
+            print(f"🚀 Starting Python application with: {python_cmd}")
+            
             # Execute Python command
             process = subprocess.Popen(
                 python_cmd.split(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                cwd=repo_path
             )
             
-            return {
-                'started_services': ['python'],
-                'processes': [{'type': 'python', 'pid': process.pid, 'command': python_cmd}],
-                'ports': [8000],  # Default port
-                'urls': ['http://localhost:8000'],
-                'python_command': python_cmd
-            }
+            # Wait a bit for the process to start
+            time.sleep(2)
+            
+            # Check if process is still running
+            if process.poll() is None:
+                print("✅ Python application started successfully!")
+                return {
+                    'started_services': ['python'],
+                    'processes': [{'type': 'python', 'pid': process.pid, 'command': python_cmd}],
+                    'ports': [8000],  # Default port
+                    'urls': ['http://localhost:8000'],
+                    'python_command': python_cmd,
+                    'status': 'running'
+                }
+            else:
+                stdout, stderr = process.communicate()
+                return {
+                    'errors': [f"Python start failed: {stderr}"],
+                    'python_command': python_cmd,
+                    'status': 'failed'
+                }
             
         except Exception as e:
             return {'errors': [f"Python start failed: {e}"]}
     
-    def _start_node_app(self, structure, mode):
+    def _start_node_app(self, structure, mode, repo_path):
         """Start Node.js application."""
         try:
             prompt = f"""
@@ -188,26 +225,43 @@ class RunnerAgent:
             
             node_cmd = generate_code_with_llm(prompt, agent_name='setup_agent')
             
+            print(f"🚀 Starting Node.js application with: {node_cmd}")
+            
             # Execute Node.js command
             process = subprocess.Popen(
                 node_cmd.split(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                cwd=repo_path
             )
             
-            return {
-                'started_services': ['node'],
-                'processes': [{'type': 'node', 'pid': process.pid, 'command': node_cmd}],
-                'ports': [3000],  # Default port
-                'urls': ['http://localhost:3000'],
-                'node_command': node_cmd
-            }
+            # Wait a bit for the process to start
+            time.sleep(2)
+            
+            # Check if process is still running
+            if process.poll() is None:
+                print("✅ Node.js application started successfully!")
+                return {
+                    'started_services': ['node'],
+                    'processes': [{'type': 'node', 'pid': process.pid, 'command': node_cmd}],
+                    'ports': [3000],  # Default port
+                    'urls': ['http://localhost:3000'],
+                    'node_command': node_cmd,
+                    'status': 'running'
+                }
+            else:
+                stdout, stderr = process.communicate()
+                return {
+                    'errors': [f"Node.js start failed: {stderr}"],
+                    'node_command': node_cmd,
+                    'status': 'failed'
+                }
             
         except Exception as e:
             return {'errors': [f"Node.js start failed: {e}"]}
     
-    def _start_generic_app(self, structure, mode):
+    def _start_generic_app(self, structure, mode, repo_path):
         """Start generic application."""
         try:
             prompt = f"""
@@ -227,21 +281,38 @@ class RunnerAgent:
             
             generic_cmd = generate_code_with_llm(prompt, agent_name='setup_agent')
             
+            print(f"🚀 Starting generic application with: {generic_cmd}")
+            
             # Execute generic command
             process = subprocess.Popen(
                 generic_cmd.split(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                cwd=repo_path
             )
             
-            return {
-                'started_services': ['generic'],
-                'processes': [{'type': 'generic', 'pid': process.pid, 'command': generic_cmd}],
-                'ports': [8080],  # Default port
-                'urls': ['http://localhost:8080'],
-                'generic_command': generic_cmd
-            }
+            # Wait a bit for the process to start
+            time.sleep(2)
+            
+            # Check if process is still running
+            if process.poll() is None:
+                print("✅ Generic application started successfully!")
+                return {
+                    'started_services': ['generic'],
+                    'processes': [{'type': 'generic', 'pid': process.pid, 'command': generic_cmd}],
+                    'ports': [8080],  # Default port
+                    'urls': ['http://localhost:8080'],
+                    'generic_command': generic_cmd,
+                    'status': 'running'
+                }
+            else:
+                stdout, stderr = process.communicate()
+                return {
+                    'errors': [f"Generic start failed: {stderr}"],
+                    'generic_command': generic_cmd,
+                    'status': 'failed'
+                }
             
         except Exception as e:
             return {'errors': [f"Generic start failed: {e}"]}

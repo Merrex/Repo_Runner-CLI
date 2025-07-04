@@ -30,7 +30,8 @@ class DetectionAgent:
             'technologies': ['Python', 'Docker'],  # Placeholder
             'files': files,
             'analysis': analysis,
-            'missing_files': self._detect_missing_files(files)
+            'missing_files': self._detect_missing_files(files),
+            'repo_path': str(repo_path)  # Add repository path
         }
     
     def _scan_files(self, repo_path):
