@@ -37,6 +37,9 @@ setup(
         "requests>=2.25.0",
         "PyYAML>=6.0",
         "python-dotenv>=0.19.0",
+        "transformers>=4.30.0",
+        "torch>=2.0.0",
+        "accelerate>=0.20.0",
     ],
     extras_require={
         "dev": [
