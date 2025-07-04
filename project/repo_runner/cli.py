@@ -10,6 +10,7 @@ from pathlib import Path
 from .core import RepoRunner
 from .config import Config
 from .logger import setup_logger
+from .agents.orchestrator import Orchestrator
 
 
 @click.group()
@@ -74,26 +75,12 @@ def setup(ctx, path, skip_deps, skip_env, skip_db):
 
 
 @cli.command()
-@click.argument('path', type=click.Path(exists=True), default='.')
-@click.option('--port', '-p', type=int, help='Override default port')
-@click.option('--host', '-h', default='localhost', help='Override default host')
-@click.option('--docker', is_flag=True, help='Force Docker execution')
-@click.option('--no-health-check', is_flag=True, help='Skip health check')
-@click.pass_context
-def run(ctx, path, port, host, docker, no_health_check):
-    """Run the detected application."""
-    runner = RepoRunner(path, ctx.obj['config'], dry_run=ctx.obj['dry_run'])
-    
-    try:
-        runner.run_application(port=port, host=host, use_docker=docker)
-        if not no_health_check:
-            runner.perform_health_check()
-        runner.show_service_urls()
-    except KeyboardInterrupt:
-        click.echo("\n🛑 Application stopped by user")
-    except Exception as e:
-        click.echo(f"❌ Run failed: {e}", err=True)
-        sys.exit(1)
+@click.argument('repo_path', type=click.Path(exists=True))
+@click.option('--mode', default='local', help='Run mode: local or cloud')
+def run(repo_path, mode):
+    """Run the agentic repo runner on the given repository."""
+    result = Orchestrator().run(repo_path, mode)
+    click.echo(f"\nFinal result: {result}")
 
 
 @cli.command()
