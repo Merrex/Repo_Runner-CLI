@@ -1,0 +1,70 @@
+# repo_runner Configuration File
+# This file configures the behavior of repo_runner for this project
+
+project:
+  name: repo_runner
+  type: python
+  version: 1.0.0
+  description: Modular Python CLI tool for automatic repository detection and execution
+
+environment:
+  development:
+    host: localhost
+    port: 8000
+    debug: true
+    log_level: DEBUG
+  
+  production:
+    host: 0.0.0.0
+    port: 8000
+    debug: false
+    log_level: INFO
+
+database:
+  auto_migrate: true
+  seed_data: false
+  backup_before_migration: true
+
+docker:
+  enabled: true
+  detached: false
+  build_args: {}
+  compose_file: docker-compose.yml
+
+hooks:
+  pre_install: []
+  post_install: []
+  pre_run: []
+  post_run: []
+  pre_health: []
+  post_health: []
+
+health_check:
+  enabled: true
+  timeout: 60
+  retry_count: 3
+  endpoints:
+    - /health
+    - /healthz
+    - /status
+
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null
+
+security:
+  check_env_vars: true
+  required_env_vars:
+    - SECRET_KEY
+  warn_default_secrets: true
+
+performance:
+  parallel_installs: true
+  cache_dependencies: true
+  optimize_builds: true
+
+notifications:
+  enabled: false
+  webhook_url: null
+  slack_channel: null

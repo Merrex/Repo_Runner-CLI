@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  repo_runner:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock  # For Docker-in-Docker
+    environment:
+      - PYTHONPATH=/app
+      - HOST=0.0.0.0
+      - PORT=8000
+      - NODE_ENV=development
+    depends_on:
+      - database
+    networks:
+      - repo_runner_network
+
+  database:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=repo_runner
+      - POSTGRES_USER=runner
+      - POSTGRES_PASSWORD=runner_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - repo_runner_network
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - repo_runner_network
+
+volumes:
+  postgres_data:
+
+networks:
+  repo_runner_network:
+    driver: bridge
