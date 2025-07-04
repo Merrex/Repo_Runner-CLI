@@ -1,94 +1,167 @@
 # repo_runner
 
-A comprehensive Python CLI tool that automatically detects project structure, installs dependencies, configures environments, and runs applications locally or via Docker. Perfect for automation pipelines and developer workflows.
+A **modular, agentic AI system** that automatically detects project structure, installs dependencies, configures environments, and runs applications locally or via Docker. Powered by specialized LLM agents for intelligent repository analysis and execution.
 
-## Features
+---
 
-🔍 **Automatic Project Detection**
-- Detects backend (Python/Django/Flask/FastAPI), frontend (React/Vue/Angular), Docker, and database configurations
-- Identifies package managers (pip, poetry, npm, yarn, pnpm)
-- Recognizes CI/CD configurations
+## 🚀 Installation (pipx Recommended)
 
-📦 **Smart Dependency Installation**
-- Supports Python (pip, poetry, pipenv) and Node.js (npm, yarn, pnpm) package managers
-- Handles Docker-based setups automatically
-- Parallel installation when possible
+```bash
+# Install pipx if not already installed
+sudo apt install pipx
+pipx ensurepath
 
-🔧 **Environment Configuration**
-- Automatic .env file setup from examples
-- Environment variable validation
+# Install repo_runner from your project directory
+cd /path/to/repo_runner/project
+pipx install .
+
+# Inject required dependencies for LLM functionality
+pipx inject repo_runner transformers torch accelerate requests
+
+# Verify installation
+repo_runner --help
+```
+
+> **Note:** If you update the code, run `pipx install . --force` to reinstall, and re-inject dependencies if needed.
+
+---
+
+## 🧠 **Agentic Architecture**
+
+The system consists of specialized AI agents, each optimized for specific tasks:
+
+| Agent | LLM Model | Purpose |
+|-------|-----------|---------|
+| **DetectionAgent** | Zephyr 1.3B | Intelligent project analysis and structure detection |
+| **RequirementsAgent** | Mistral 7B | Generate missing requirements/config files |
+| **SetupAgent** | Mistral 7B | Install dependencies and setup environment |
+| **DBAgent** | Mistral 7B | Database setup, schema generation, migrations |
+| **RunnerAgent** | Mistral 7B | Start applications (Docker, Python, Node.js) |
+| **HealthAgent** | Zephyr 1.3B | Health checks and service diagnostics |
+| **FixerAgent** | WizardCoder 1B | Error analysis and automatic fixes |
+
+## 🚀 **Features**
+
+🔍 **Intelligent Project Detection**
+- LLM-powered analysis of project structure and technologies
+- Automatic detection of missing critical files
+- Smart identification of frameworks and dependencies
+
+📦 **AI-Generated Requirements**
+- Automatically generates `requirements.txt`, `package.json`, `Dockerfile`
+- Analyzes existing configs and suggests improvements
+- Creates environment files with appropriate defaults
+
+🔧 **Smart Environment Setup**
+- LLM-guided dependency installation (pip, npm, yarn, etc.)
+- Automatic environment variable generation
 - Framework-specific configuration
 
-🗄️ **Database Bootstrapping**
-- Supports SQLite, PostgreSQL, Prisma, Alembic, Django migrations
-- Automatic database creation and seeding
-- Connection validation
+🗄️ **Database Intelligence**
+- Detects database type (SQLite, PostgreSQL, MongoDB, etc.)
+- Generates schemas and runs migrations
+- Tests database connections automatically
 
-🚀 **Application Startup**
-- Runs applications directly or via Docker
-- Supports multiple services simultaneously
-- Graceful shutdown handling
+🚀 **Intelligent Application Startup**
+- Determines optimal startup method (Docker, Python, Node.js)
+- Monitors process health and restarts if needed
+- Supports local and cloud deployment modes
 
-🏥 **Health Checks & Monitoring**
-- Service health validation
-- Response time monitoring
-- Port availability checking
+🏥 **AI-Powered Health Monitoring**
+- Real-time service health checks
+- URL response monitoring
+- LLM-based issue diagnosis and fixes
 
-📚 **Documentation Management**
-- Auto-updates README.md with setup instructions
-- Generates setup guides
-- Creates .env.example files
+🔌 **Extensible Agent System**
+- Modular agent architecture for easy extension
+- Custom LLM model selection per agent
+- Plugin system for new capabilities
 
-🔌 **Extensible Architecture**
-- Custom hooks system (pre_install, post_run, etc.)
-- Plugin support via .runnerconfig.yaml
-- Modular design for easy extension
-
-## Installation
+## 🎯 **Quick Start**
 
 ```bash
-pip install repo_runner
+repo_runner run /path/to/your/repo --mode local
 ```
 
-## Quick Start
+This will:
+1. **Detect** project structure using AI
+2. **Generate** missing requirements files
+3. **Setup** dependencies and environment
+4. **Configure** database and run migrations
+5. **Start** the application intelligently
+6. **Monitor** health and fix issues automatically
 
-### Automatic Workflow (Recommended)
+## 📋 **Usage Examples**
+
+### **Python Project**
 
 ```bash
-# Run complete workflow: detect, setup, and run
-repo_runner full
+# Run on a Python project
+repo_runner run /path/to/python/project --mode local
 
-# Or run individual steps
-repo_runner detect    # Detect project structure
-repo_runner setup     # Install dependencies and configure
-repo_runner run       # Run the application
+# Expected output:
+# 🔍 DetectionAgent: Analyzing project structure...
+# 📦 RequirementsAgent: Generating requirements.txt...
+# 🔧 SetupAgent: Installing dependencies...
+# 🗄️ DBAgent: Setting up database...
+# 🚀 RunnerAgent: Starting Python application...
+# 🏥 HealthAgent: All services healthy!
 ```
 
-### Individual Commands
+### **Node.js Project**
 
 ```bash
-# Detect project structure
-repo_runner detect
+# Run on a Node.js project
+repo_runner run /path/to/nodejs/project --mode local
 
-# Install dependencies only
-repo_runner setup --skip-env --skip-db
-
-# Run with custom port
-repo_runner run --port 8080
-
-# Force Docker execution
-repo_runner run --docker
-
-# Check application health
-repo_runner health
-
-# Update documentation
-repo_runner docs
+# Expected output:
+# 🔍 DetectionAgent: Detected React + Express project
+# 📦 RequirementsAgent: Generating package.json...
+# 🔧 SetupAgent: Running npm install...
+# 🗄️ DBAgent: No database detected
+# 🚀 RunnerAgent: Starting with npm start...
+# 🏥 HealthAgent: Frontend and backend running!
 ```
 
-## Configuration
+### **Docker Project**
 
-Create a `.runnerconfig.yaml` file to customize behavior:
+```bash
+# Run on a Docker project
+repo_runner run /path/to/docker/project --mode local
+
+# Expected output:
+# 🔍 DetectionAgent: Detected Docker Compose setup
+# 📦 RequirementsAgent: Dockerfile already exists
+# 🔧 SetupAgent: Building Docker images...
+# 🗄️ DBAgent: Database container starting...
+# 🚀 RunnerAgent: Starting with docker-compose up...
+# 🏥 HealthAgent: All containers healthy!
+```
+
+## ⚙️ **Configuration**
+
+### **Agent-Specific Model Configuration**
+
+Create a `.env` file to customize LLM models:
+
+```bash
+# Detection and Health (fast, lightweight)
+DETECTION_MODEL=HuggingFaceH4/zephyr-1.3b
+HEALTH_MODEL=HuggingFaceH4/zephyr-1.3b
+
+# Code Generation (powerful, detailed)
+REQUIREMENTS_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+SETUP_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+DB_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+RUNNER_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+
+# Code Fixes (specialized)
+FIXER_MODEL=WizardLM/WizardCoder-1B-V1.0
+```
+
+### **Project Configuration**
+
+Create a `.runnerconfig.yaml` file for project-specific settings:
 
 ```yaml
 project:
@@ -98,193 +171,75 @@ project:
 environment:
   development:
     host: localhost
-    port: 3000
+    port: 8000
     debug: true
 
 database:
   auto_migrate: true
-  seed_data: true
+  seed_data: false
 
 docker:
   enabled: true
   detached: false
 
-hooks:
-  pre_install:
-    - echo "Preparing installation..."
-  post_run:
-    - echo "Application started!"
-
 health_check:
   enabled: true
   timeout: 60
+  retry_count: 3
 ```
 
-## Supported Project Types
+## 🔧 **Troubleshooting**
 
-### Backend Frameworks
-- **Django**: Full support with migrations and admin setup
-- **Flask**: Automatic detection and environment setup
-- **FastAPI**: Modern async API framework support
-- **Generic Python**: Any Python project with requirements.txt
+### **Common Issues**
 
-### Frontend Frameworks
-- **React**: Create React App and Vite support
-- **Vue.js**: Vue CLI and Vite support
-- **Angular**: Angular CLI support
-- **Next.js**: Full-stack React framework
-- **Nuxt.js**: Vue-based framework
+1. **Missing Dependencies**
+   ```bash
+   # If you get "ModuleNotFoundError: No module named 'transformers'"
+   pipx inject repo_runner transformers torch accelerate requests
+   ```
 
-### Databases
-- **SQLite**: Automatic database creation
-- **PostgreSQL**: Connection validation and migrations
-- **Prisma**: Schema generation and migrations
-- **Alembic**: SQLAlchemy migrations
-- **Django ORM**: Built-in migration support
+2. **Permission Issues**
+   ```bash
+   # Use virtual environment instead of global install
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -e .
+   ```
 
-### Package Managers
-- **Python**: pip, poetry, pipenv
-- **Node.js**: npm, yarn, pnpm
-- **Docker**: Dockerfile and docker-compose
+3. **LLM Model Loading**
+   ```bash
+   # Set smaller models for faster loading
+   export DETECTION_MODEL="HuggingFaceH4/zephyr-1.3b"
+   export FIXER_MODEL="WizardLM/WizardCoder-1B-V1.0"
+   ```
 
-## Hook System
-
-Extend repo_runner with custom hooks:
-
-### Create hooks.py
-
-```python
-def pre_install(structure=None, **kwargs):
-    """Called before dependency installation."""
-    print("🔧 Preparing for installation...")
-    
-def post_run(structure=None, services=None, **kwargs):
-    """Called after application starts."""
-    print("🎉 Application is running!")
-    
-def pre_health(services=None, **kwargs):
-    """Called before health check."""
-    print("🏥 Checking application health...")
-```
-
-### Available Hook Points
-
-- `pre_detect` / `post_detect`: Project structure detection
-- `pre_install` / `post_install`: Dependency installation
-- `pre_env` / `post_env`: Environment setup
-- `pre_db` / `post_db`: Database configuration
-- `pre_run` / `post_run`: Application startup
-- `pre_health` / `post_health`: Health checks
-- `pre_docs` / `post_docs`: Documentation updates
-
-## Examples
-
-### Django Project
+### **Debug Mode**
 
 ```bash
-# Detect Django project
-repo_runner detect
-# Output: Django project with PostgreSQL database
-
-# Setup with migrations
-repo_runner setup
-# Installs dependencies, runs migrations, creates superuser
-
-# Run development server
-repo_runner run
-# Starts Django on http://localhost:8000
+# Run with verbose logging
+repo_runner run /path/to/repo --mode local --verbose
 ```
 
-### React + Node.js API
-
-```bash
-# Detect full-stack project
-repo_runner detect
-# Output: Frontend (React) + Backend (Node.js) + Database (PostgreSQL)
-
-# Install all dependencies
-repo_runner setup
-
-# Run both frontend and backend
-repo_runner run
-# Frontend: http://localhost:3000
-# Backend: http://localhost:5000
-```
-
-### Docker Project
-
-```bash
-# Force Docker execution
-repo_runner run --docker
-
-# Or with docker-compose
-repo_runner full  # Automatically detects and uses docker-compose
-```
-
-## CLI Reference
-
-### Commands
-
-- `detect`: Analyze project structure and technologies
-- `setup`: Install dependencies and configure environment
-- `run`: Start the application
-- `full`: Complete workflow (detect + setup + run)
-- `health`: Check application health
-- `docs`: Update project documentation
-
-### Global Options
-
-- `--config, -c`: Path to configuration file
-- `--verbose, -v`: Enable verbose logging
-- `--dry-run`: Show what would be done without executing
-
-### Run Options
-
-- `--port, -p`: Override default port
-- `--host, -h`: Override default host
-- `--docker`: Force Docker execution
-- `--no-health-check`: Skip health validation
-
-## Development
-
-### Setup Development Environment
-
-```bash
-# Clone repository
-git clone https://github.com/repo_runner/repo_runner.git
-cd repo_runner
-
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Run linting
-flake8 repo_runner/
-black repo_runner/
-```
-
-### Project Structure
+## 🏗️ **Architecture**
 
 ```
 repo_runner/
-├── __init__.py          # Package initialization
-├── cli.py               # CLI interface
-├── core.py              # Main RepoRunner class
-├── detectors.py         # Project structure detection
-├── installers.py        # Dependency installation
-├── environment.py       # Environment configuration
-├── database.py          # Database management
-├── runner.py            # Application execution
-├── health.py            # Health checking
-├── documentation.py     # Documentation updates
-├── hooks.py             # Hook system
-├── config.py            # Configuration management
-└── logger.py            # Logging setup
+├── agents/
+│   ├── detection_agent.py    # Project analysis
+│   ├── requirements_agent.py # Config generation
+│   ├── setup_agent.py        # Dependency installation
+│   ├── db_agent.py          # Database setup
+│   ├── runner_agent.py      # Application startup
+│   ├── health_agent.py      # Health monitoring
+│   ├── fixer_agent.py       # Error fixing
+│   └── orchestrator.py      # Agent coordination
+├── llm/
+│   └── llm_utils.py         # LLM model management
+├── cli.py                   # Command-line interface
+└── core.py                  # Core functionality
 ```
 
-## Contributing
+## 🤝 **Contributing**
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
@@ -292,11 +247,11 @@ repo_runner/
 4. Run tests: `pytest`
 5. Submit a pull request
 
-## License
+## 📄 **License**
 
 MIT License - see LICENSE file for details.
 
-## Support
+## 🆘 **Support**
 
 - 📧 Email: info@repo_runner.dev
 - 🐛 Issues: GitHub Issues
