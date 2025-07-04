@@ -8,12 +8,8 @@ from ..llm.llm_utils import generate_code_with_llm
 
 class RunnerAgent:
     def start(self, structure, mode="local"):
-        """Start the application using LLM for intelligent execution."""
-        files = structure.get('files', {})
-        
-        # Get the repository path from structure
-        repo_path = structure.get('repo_path', '.')
-        
+        """Start all detected services using LLM for intelligent execution."""
+        services = structure.get('services', [])
         runner_results = {
             'started_services': [],
             'processes': [],
@@ -22,22 +18,29 @@ class RunnerAgent:
             'errors': [],
             'warnings': []
         }
-        
-        # Determine how to start the application
-        start_method = self._determine_start_method(structure, mode)
-        runner_results['start_method'] = start_method
-        
-        if start_method == 'docker':
-            result = self._start_with_docker(structure, mode, repo_path)
-        elif start_method == 'python':
-            result = self._start_python_app(structure, mode, repo_path)
-        elif start_method == 'node':
-            result = self._start_node_app(structure, mode, repo_path)
-        else:
-            result = self._start_generic_app(structure, mode, repo_path)
-        
-        runner_results.update(result)
-        
+        # If docker-compose is present and valid, try it first
+        docker_service = next((s for s in services if s['type'] == 'docker'), None)
+        if docker_service and os.path.exists(os.path.join(docker_service['path'], 'docker-compose.yml')):
+            result = self._start_with_docker(structure, mode, docker_service['path'])
+            runner_results.update(result)
+            if result.get('status') == 'running':
+                return runner_results
+        # Otherwise, start each service individually
+        for svc in services:
+            if svc['type'] == 'python':
+                result = self._start_python_app(structure, mode, svc['path'])
+                runner_results['started_services'].append('python')
+                runner_results['processes'].append(result.get('processes', [{}])[0])
+                runner_results['ports'].extend(result.get('ports', []))
+                runner_results['urls'].extend(result.get('urls', []))
+                runner_results['errors'].extend(result.get('errors', []))
+            elif svc['type'] == 'node':
+                result = self._start_node_app(structure, mode, svc['path'])
+                runner_results['started_services'].append('node')
+                runner_results['processes'].append(result.get('processes', [{}])[0])
+                runner_results['ports'].extend(result.get('ports', []))
+                runner_results['urls'].extend(result.get('urls', []))
+                runner_results['errors'].extend(result.get('errors', []))
         return runner_results
     
     def _determine_start_method(self, structure, mode):

@@ -2,6 +2,7 @@ import subprocess
 import json
 from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
+import os
 
 class FixerAgent:
     def fix(self, errors, structure):
@@ -76,3 +77,22 @@ class FixerAgent:
             pass
         
         return True 
+
+    def fix_services(self, structure, health_results):
+        """Analyze failed services and suggest or apply fixes."""
+        fixes = []
+        for result in health_results:
+            svc = result['service']
+            if result.get('status') == 'down':
+                if svc['type'] == 'python':
+                    # Check for missing __init__.py
+                    routers_path = os.path.join(svc['path'], 'routers')
+                    if os.path.isdir(routers_path) and not os.path.exists(os.path.join(routers_path, '__init__.py')):
+                        with open(os.path.join(routers_path, '__init__.py'), 'w') as f:
+                            f.write('# Added by FixerAgent\n')
+                        fixes.append({'service': svc, 'fix': 'Added missing __init__.py to routers'})
+                if svc['type'] == 'node':
+                    # Check for missing node_modules
+                    if not os.path.exists(os.path.join(svc['path'], 'node_modules')):
+                        fixes.append({'service': svc, 'fix': 'Run npm install in frontend'})
+        return fixes 

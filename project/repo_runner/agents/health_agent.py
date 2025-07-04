@@ -249,4 +249,22 @@ class HealthAgent:
                 'issues': [f"Analysis error: {e}"],
                 'fixes': 'Manual intervention required',
                 'next_steps': 'Check system logs'
-            } 
+            }
+    
+    def check_services(self, structure):
+        """Check if each detected service is running."""
+        results = []
+        for svc in structure.get('services', []):
+            if svc['type'] == 'python':
+                try:
+                    r = requests.get('http://localhost:8000')
+                    results.append({'service': svc, 'status': r.status_code})
+                except Exception as e:
+                    results.append({'service': svc, 'status': 'down', 'error': str(e)})
+            elif svc['type'] == 'node':
+                try:
+                    r = requests.get('http://localhost:3000')
+                    results.append({'service': svc, 'status': r.status_code})
+                except Exception as e:
+                    results.append({'service': svc, 'status': 'down', 'error': str(e)})
+        return results 

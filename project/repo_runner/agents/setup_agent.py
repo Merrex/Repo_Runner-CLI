@@ -161,4 +161,24 @@ class SetupAgent:
                 return {'warnings': ['Environment file already exists']}
                 
         except Exception as e:
-            return {'errors': [f"Environment setup error: {e}"]} 
+            return {'errors': [f"Environment setup error: {e}"]}
+
+    def setup_services(self, structure):
+        """Install dependencies for all detected services."""
+        results = []
+        for svc in structure.get('services', []):
+            svc_type = svc['type']
+            svc_path = svc['path']
+            if svc_type == 'python':
+                req_path = os.path.join(svc_path, 'requirements.txt')
+                if os.path.exists(req_path):
+                    result = subprocess.run(['python3', '-m', 'venv', 'venv'], cwd=svc_path)
+                    result = subprocess.run([os.path.join(svc_path, 'venv/bin/pip'), 'install', '-r', 'requirements.txt'], cwd=svc_path)
+                    results.append({'service': svc, 'result': result.returncode})
+            elif svc_type == 'node':
+                if os.path.exists(os.path.join(svc_path, 'yarn.lock')):
+                    result = subprocess.run(['yarn', 'install'], cwd=svc_path)
+                else:
+                    result = subprocess.run(['npm', 'install'], cwd=svc_path)
+                results.append({'service': svc, 'result': result.returncode})
+        return results 
