@@ -53,5 +53,16 @@ def get_llm_pipeline(agent_name: str):
 
 def generate_code_with_llm(prompt: str, agent_name: str = 'setup_agent', max_new_tokens: int = 512, temperature: float = 0.2) -> str:
     pipe = get_llm_pipeline(agent_name)
-    output = pipe(prompt, max_new_tokens=max_new_tokens, temperature=temperature, do_sample=True)
-    return output[0]["generated_text"][len(prompt):].strip() 
+    
+    # Truncate prompt to fit within model's context window (1024 tokens)
+    # Approximate token count: 1 token ≈ 4 characters
+    max_chars = 1024 * 4  # Conservative estimate
+    if len(prompt) > max_chars:
+        prompt = prompt[:max_chars] + "\n\n[Content truncated for model context limit]"
+    
+    try:
+        output = pipe(prompt, max_new_tokens=max_new_tokens, temperature=temperature, do_sample=True)
+        return output[0]["generated_text"][len(prompt):].strip()
+    except Exception as e:
+        # Fallback response if LLM fails
+        return f"LLM generation failed: {str(e)}. Please check the project manually." 
