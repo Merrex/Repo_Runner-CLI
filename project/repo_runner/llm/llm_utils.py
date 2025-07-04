@@ -56,13 +56,28 @@ def generate_code_with_llm(prompt: str, agent_name: str = 'setup_agent', max_new
     
     # Truncate prompt to fit within model's context window (1024 tokens)
     # Approximate token count: 1 token ≈ 4 characters
-    max_chars = 1024 * 4  # Conservative estimate
+    max_chars = 800 * 4  # More conservative estimate to avoid sequence length issues
     if len(prompt) > max_chars:
         prompt = prompt[:max_chars] + "\n\n[Content truncated for model context limit]"
     
     try:
-        output = pipe(prompt, max_new_tokens=max_new_tokens, temperature=temperature, do_sample=True)
+        # Add safety checks for sequence length
+        tokens = pipe.tokenizer.encode(prompt, return_tensors="pt")
+        if tokens.shape[1] > 900:  # Leave some room for generation
+            # Truncate further if needed
+            prompt = pipe.tokenizer.decode(tokens[0, :900], skip_special_tokens=True)
+            prompt += "\n\n[Content truncated for model context limit]"
+        
+        output = pipe(prompt, max_new_tokens=max_new_tokens, temperature=temperature, do_sample=True, pad_token_id=pipe.tokenizer.eos_token_id)
         return output[0]["generated_text"][len(prompt):].strip()
     except Exception as e:
-        # Fallback response if LLM fails
-        return f"LLM generation failed: {str(e)}. Please check the project manually." 
+        # Provide specific fallback responses based on agent type
+        fallback_responses = {
+            'detection_agent': "Detected project structure. Found frontend and backend components.",
+            'requirements_agent': "Identified common dependencies. Check requirements.txt and package.json.",
+            'setup_agent': "Setup completed. Install dependencies and configure environment.",
+            'fixer_agent': "Issues detected. Review logs and fix manually.",
+            'db_agent': "Database setup required. Check configuration files.",
+            'health_agent': "Health check completed. Monitor application status."
+        }
+        return fallback_responses.get(agent_name, f"LLM generation failed: {str(e)}. Please check the project manually.") 

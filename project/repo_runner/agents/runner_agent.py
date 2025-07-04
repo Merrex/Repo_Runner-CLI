@@ -44,58 +44,58 @@ class RunnerAgent:
         """Determine the best way to start the application using LLM."""
         files = structure.get('files', {})
         
-        prompt = f"""
-        Analyze this project and determine the best way to start it:
+        # First try rule-based detection
+        if 'docker-compose.yml' in files or 'Dockerfile' in files:
+            return 'docker'
+        elif 'package.json' in files:
+            return 'node'
+        elif any(f.endswith('.py') for f in files.keys()):
+            return 'python'
         
-        Mode: {mode}
-        Files: {list(files.keys())}
-        Technologies: {structure.get('technologies', [])}
-        
-        Common start methods:
-        - docker: If Dockerfile or docker-compose.yml exists
-        - python: If main.py, app.py, or manage.py exists
-        - node: If package.json with start script exists
-        - generic: For other cases
-        
-        Consider:
-        - Available files
-        - Technology stack
-        - Mode (local vs cloud)
-        - Best practices
-        
-        Return only: docker, python, node, or generic
-        """
-        
-        method = generate_code_with_llm(prompt, agent_name='setup_agent').strip().lower()
-        
-        # Validate the response
-        valid_methods = ['docker', 'python', 'node', 'generic']
-        return method if method in valid_methods else 'generic'
+        # Fallback to LLM if rule-based detection fails
+        try:
+            prompt = f"""
+            Analyze this project and determine the best way to start it:
+            
+            Mode: {mode}
+            Files: {list(files.keys())}
+            Technologies: {structure.get('technologies', [])}
+            
+            Common start methods:
+            - docker: If Dockerfile or docker-compose.yml exists
+            - python: If main.py, app.py, or manage.py exists
+            - node: If package.json with start script exists
+            - generic: For other cases
+            
+            Consider:
+            - Available files
+            - Technology stack
+            - Mode (local vs cloud)
+            - Best practices
+            
+            Return only: docker, python, node, or generic
+            """
+            
+            method = generate_code_with_llm(prompt, agent_name='setup_agent').strip().lower()
+            
+            # Validate the response
+            valid_methods = ['docker', 'python', 'node', 'generic']
+            return method if method in valid_methods else 'generic'
+        except Exception as e:
+            print(f"LLM detection failed: {e}, using generic method")
+            return 'generic'
     
     def _start_with_docker(self, structure, mode, repo_path):
         """Start application using Docker."""
         try:
-            prompt = f"""
-            Suggest Docker start command for this project:
-            
-            Mode: {mode}
-            Project structure: {json.dumps(structure, indent=2)}
-            
-            Options:
-            - docker-compose up (if docker-compose.yml exists)
-            - docker build && docker run (if Dockerfile exists)
-            - docker-compose up -d (for detached mode)
-            
-            Consider:
-            - Available Docker files
-            - Mode (local vs cloud)
-            - Port mappings
-            - Environment variables
-            
-            Return only the recommended Docker command.
-            """
-            
-            docker_cmd = generate_code_with_llm(prompt, agent_name='setup_agent')
+            # Rule-based Docker command selection
+            docker_cmd = None
+            if os.path.exists(os.path.join(repo_path, 'docker-compose.yml')):
+                docker_cmd = 'docker-compose up -d' if mode == 'cloud' else 'docker-compose up'
+            elif os.path.exists(os.path.join(repo_path, 'Dockerfile')):
+                docker_cmd = 'docker build -t app . && docker run -p 8000:8000 app'
+            else:
+                docker_cmd = 'docker-compose up'
             
             print(f"🚀 Starting Docker application with: {docker_cmd}")
             
@@ -136,30 +136,16 @@ class RunnerAgent:
     def _start_python_app(self, structure, mode, repo_path):
         """Start Python application."""
         try:
-            prompt = f"""
-            Suggest Python start command for this project:
-            
-            Mode: {mode}
-            Project structure: {json.dumps(structure, indent=2)}
-            
-            Common Python start commands:
-            - python main.py
-            - python app.py
-            - python manage.py runserver (Django)
-            - uvicorn main:app --reload (FastAPI)
-            - flask run (Flask)
-            - gunicorn app:app (Production)
-            
-            Consider:
-            - Available Python files
-            - Framework (Django, Flask, FastAPI, etc.)
-            - Mode (development vs production)
-            - Port configuration
-            
-            Return only the recommended Python command.
-            """
-            
-            python_cmd = generate_code_with_llm(prompt, agent_name='setup_agent')
+            # Rule-based Python command selection
+            python_cmd = None
+            if os.path.exists(os.path.join(repo_path, 'main.py')):
+                python_cmd = 'python main.py'
+            elif os.path.exists(os.path.join(repo_path, 'app.py')):
+                python_cmd = 'python app.py'
+            elif os.path.exists(os.path.join(repo_path, 'manage.py')):
+                python_cmd = 'python manage.py runserver'
+            else:
+                python_cmd = 'python -m http.server 8000'  # Fallback
             
             print(f"🚀 Starting Python application with: {python_cmd}")
             
@@ -200,30 +186,32 @@ class RunnerAgent:
     def _start_node_app(self, structure, mode, repo_path):
         """Start Node.js application."""
         try:
-            prompt = f"""
-            Suggest Node.js start command for this project:
+            # Rule-based Node.js command selection
+            node_cmd = None
+            package_json_path = os.path.join(repo_path, 'package.json')
             
-            Mode: {mode}
-            Project structure: {json.dumps(structure, indent=2)}
-            
-            Common Node.js start commands:
-            - npm start
-            - yarn start
-            - node app.js
-            - node server.js
-            - npm run dev
-            - yarn dev
-            
-            Consider:
-            - Available package.json scripts
-            - Framework (Express, Next.js, etc.)
-            - Mode (development vs production)
-            - Port configuration
-            
-            Return only the recommended Node.js command.
-            """
-            
-            node_cmd = generate_code_with_llm(prompt, agent_name='setup_agent')
+            if os.path.exists(package_json_path):
+                # Check for start script
+                try:
+                    with open(package_json_path, 'r') as f:
+                        package_data = json.load(f)
+                        scripts = package_data.get('scripts', {})
+                        if 'start' in scripts:
+                            node_cmd = 'npm start'
+                        elif 'dev' in scripts:
+                            node_cmd = 'npm run dev'
+                        else:
+                            node_cmd = 'npm start'
+                except:
+                    node_cmd = 'npm start'
+            else:
+                # Look for common entry points
+                if os.path.exists(os.path.join(repo_path, 'app.js')):
+                    node_cmd = 'node app.js'
+                elif os.path.exists(os.path.join(repo_path, 'server.js')):
+                    node_cmd = 'node server.js'
+                else:
+                    node_cmd = 'npm start'
             
             print(f"🚀 Starting Node.js application with: {node_cmd}")
             
@@ -264,22 +252,20 @@ class RunnerAgent:
     def _start_generic_app(self, structure, mode, repo_path):
         """Start generic application."""
         try:
-            prompt = f"""
-            Suggest a generic start command for this project:
+            # Rule-based generic command selection
+            generic_cmd = None
             
-            Mode: {mode}
-            Project structure: {json.dumps(structure, indent=2)}
-            
-            Analyze the project and suggest:
-            - The main entry point
-            - Appropriate start command
-            - Port configuration
-            - Environment setup
-            
-            Return only the recommended start command.
-            """
-            
-            generic_cmd = generate_code_with_llm(prompt, agent_name='setup_agent')
+            # Check for common patterns
+            if os.path.exists(os.path.join(repo_path, 'docker-compose.yml')):
+                generic_cmd = 'docker-compose up'
+            elif os.path.exists(os.path.join(repo_path, 'package.json')):
+                generic_cmd = 'npm start'
+            elif os.path.exists(os.path.join(repo_path, 'main.py')):
+                generic_cmd = 'python main.py'
+            elif os.path.exists(os.path.join(repo_path, 'app.py')):
+                generic_cmd = 'python app.py'
+            else:
+                generic_cmd = 'python -m http.server 8080'  # Fallback HTTP server
             
             print(f"🚀 Starting generic application with: {generic_cmd}")
             
