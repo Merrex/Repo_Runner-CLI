@@ -61,63 +61,56 @@ DEFAULT_MODEL_CONFIG = {
     },
 }
 
-# Advanced models (gated/paid) - require authentication
-ADVANCED_MODEL_CONFIG = {
+# Gated models (require Hugging Face token)
+GATED_MODEL_CONFIG = {
     'detection_agent': {
         'model_name': 'mistralai/Mistral-7B-Instruct-v0.2',
         'max_tokens': 1024,
         'temperature': 0.1,
         'max_input_length': 4096,
-        'type': 'gated',
-        'requires_token': True
+        'type': 'gated'
     },
     'requirements_agent': {
         'model_name': 'mistralai/Mistral-7B-Instruct-v0.2',
         'max_tokens': 2048,
         'temperature': 0.2,
         'max_input_length': 8192,
-        'type': 'gated',
-        'requires_token': True
+        'type': 'gated'
     },
     'setup_agent': {
         'model_name': 'mistralai/Mistral-7B-Instruct-v0.2',
         'max_tokens': 2048,
         'temperature': 0.2,
         'max_input_length': 8192,
-        'type': 'gated',
-        'requires_token': True
+        'type': 'gated'
     },
     'fixer_agent': {
         'model_name': 'WizardLM/WizardCoder-1B-V1.0',
         'max_tokens': 1536,
         'temperature': 0.1,
         'max_input_length': 6144,
-        'type': 'gated',
-        'requires_token': True
+        'type': 'gated'
     },
     'db_agent': {
         'model_name': 'mistralai/Mistral-7B-Instruct-v0.2',
         'max_tokens': 2048,
         'temperature': 0.2,
         'max_input_length': 8192,
-        'type': 'gated',
-        'requires_token': True
+        'type': 'gated'
     },
     'health_agent': {
         'model_name': 'HuggingFaceH4/zephyr-1.3b',
         'max_tokens': 1024,
         'temperature': 0.1,
         'max_input_length': 4096,
-        'type': 'gated',
-        'requires_token': True
+        'type': 'gated'
     },
     'runner_agent': {
         'model_name': 'mistralai/Mistral-7B-Instruct-v0.2',
         'max_tokens': 2048,
         'temperature': 0.2,
         'max_input_length': 8192,
-        'type': 'gated',
-        'requires_token': True
+        'type': 'gated'
     },
 }
 
@@ -193,46 +186,60 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # Cache for loaded pipelines per model
 _llm_pipes = {}
 
+def create_pipeline_safely(model, tokenizer, **kwargs):
+    """Create pipeline with safe device handling for accelerate-loaded models."""
+    try:
+        # First try with device parameter
+        return pipeline(
+            "text-generation", 
+            model=model, 
+            tokenizer=tokenizer, 
+            device=0 if DEVICE=="cuda" else -1,
+            **kwargs
+        )
+    except Exception as e:
+        if "accelerate" in str(e).lower() and "device" in str(e).lower():
+            # Retry without device parameter for accelerate-loaded models
+            safe_kwargs = {k: v for k, v in kwargs.items() if k != 'device'}
+            return pipeline(
+                "text-generation", 
+                model=model, 
+                tokenizer=tokenizer, 
+                **safe_kwargs
+            )
+        else:
+            # Re-raise if it's a different error
+            raise e
+
 def get_model_config(agent_name: str) -> Dict[str, Any]:
-    """Get model configuration for an agent with environment override."""
-    # Check environment for model type preference
-    model_type = os.getenv(f'{agent_name.upper()}_MODEL_TYPE', 'default')
+    """Get model configuration based on environment variables and agent type."""
     
-    if model_type == 'advanced':
-        config = ADVANCED_MODEL_CONFIG.get(agent_name, ADVANCED_MODEL_CONFIG['setup_agent'])
-    elif model_type == 'premium':
-        config = PREMIUM_MODEL_CONFIG.get(agent_name, PREMIUM_MODEL_CONFIG['setup_agent'])
+    # Check for premium model type first
+    model_type = os.getenv(f'{agent_name.upper()}_AGENT_MODEL_TYPE', 'default')
+    
+    if model_type == 'premium':
+        return PREMIUM_MODEL_CONFIG.get(agent_name, PREMIUM_MODEL_CONFIG['setup_agent'])
+    elif model_type == 'advanced':
+        return GATED_MODEL_CONFIG.get(agent_name, GATED_MODEL_CONFIG['setup_agent'])
     else:
-        config = DEFAULT_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG['setup_agent'])
-    
-    # Allow environment override for specific model
-    env_model = os.getenv(f'{agent_name.upper()}_MODEL')
-    if env_model:
-        config['model_name'] = env_model
-    
-    return config
+        # Use default models
+        return DEFAULT_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG['setup_agent'])
 
 def get_authentication_for_model(agent_name: str, config: Dict[str, Any]) -> Optional[str]:
-    """Get authentication token/key for a model."""
+    """Get authentication token/key for the specified model."""
     model_type = config.get('type', 'public')
     
-    if model_type == 'public':
-        return None
-    elif model_type == 'gated':
-        # Try to get Hugging Face token
-        token = os.getenv(f'{agent_name.upper()}_TOKEN')
-        if not token:
-            token = os.getenv('HUGGINGFACE_TOKEN')
-        return token
+    if model_type == 'gated':
+        # Get Hugging Face token
+        return os.getenv(f'{agent_name.upper()}_TOKEN') or os.getenv('HF_TOKEN')
     elif model_type == 'paid':
-        # Try to get API key based on provider
         provider = config.get('provider', 'openai')
         if provider == 'openai':
-            return os.getenv(f'{agent_name.upper()}_API_KEY') or os.getenv('OPENAI_API_KEY')
+            return os.getenv('OPENAI_API_KEY')
         elif provider == 'anthropic':
-            return os.getenv(f'{agent_name.upper()}_API_KEY') or os.getenv('ANTHROPIC_API_KEY')
+            return os.getenv('ANTHROPIC_API_KEY')
         elif provider == 'google':
-            return os.getenv(f'{agent_name.upper()}_API_KEY') or os.getenv('GOOGLE_API_KEY')
+            return os.getenv('GOOGLE_API_KEY')
     
     return None
 
@@ -263,43 +270,46 @@ def get_llm_pipeline(agent_name: str):
         return _create_fallback_pipeline(agent_name)
 
 def _create_local_pipeline(agent_name: str, config: Dict[str, Any], token: Optional[str]):
-    """Create pipeline for local models (public/gated)."""
+    """Create pipeline for local models (public/gated) with safe device handling."""
     model_name = config['model_name']
     
-    # Load tokenizer with appropriate settings
-    tokenizer = AutoTokenizer.from_pretrained(model_name, token=token) if token else AutoTokenizer.from_pretrained(model_name)
-    
-    # Set pad token if not present
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    
-    # Load model with appropriate settings
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name, 
-        torch_dtype=torch.float16 if DEVICE=="cuda" else torch.float32, 
-        token=token,
-        device_map="auto" if DEVICE=="cuda" else None,
-        low_cpu_mem_usage=True
-    ) if token else AutoModelForCausalLM.from_pretrained(
-        model_name, 
-        torch_dtype=torch.float16 if DEVICE=="cuda" else torch.float32,
-        device_map="auto" if DEVICE=="cuda" else None,
-        low_cpu_mem_usage=True
-    )
-    
-    # Create pipeline
-    pipe = pipeline(
-        "text-generation", 
-        model=model, 
-        tokenizer=tokenizer, 
-        device=0 if DEVICE=="cuda" else -1,
-        do_sample=True,
-        pad_token_id=tokenizer.eos_token_id
-    )
-    
-    cache_key = (model_name, token, config.get('type', 'public'))
-    _llm_pipes[cache_key] = pipe
-    return pipe
+    try:
+        # Load tokenizer with appropriate settings
+        tokenizer = AutoTokenizer.from_pretrained(model_name, token=token) if token else AutoTokenizer.from_pretrained(model_name)
+        
+        # Set pad token if not present
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        
+        # Load model with appropriate settings
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name, 
+            torch_dtype=torch.float16 if DEVICE=="cuda" else torch.float32, 
+            token=token,
+            device_map="auto" if DEVICE=="cuda" else None,
+            low_cpu_mem_usage=True
+        ) if token else AutoModelForCausalLM.from_pretrained(
+            model_name, 
+            torch_dtype=torch.float16 if DEVICE=="cuda" else torch.float32,
+            device_map="auto" if DEVICE=="cuda" else None,
+            low_cpu_mem_usage=True
+        )
+        
+        # Create pipeline with safe device handling
+        pipe = create_pipeline_safely(
+            model=model, 
+            tokenizer=tokenizer, 
+            do_sample=True,
+            pad_token_id=tokenizer.eos_token_id
+        )
+        
+        cache_key = (model_name, token, config.get('type', 'public'))
+        _llm_pipes[cache_key] = pipe
+        return pipe
+        
+    except Exception as e:
+        print(f"Failed to create local pipeline for {model_name}: {e}")
+        raise e
 
 def _create_api_pipeline(agent_name: str, config: Dict[str, Any], api_key: Optional[str]):
     """Create pipeline for paid API models."""
@@ -444,8 +454,8 @@ def generate_code_with_llm(prompt: str, agent_name: str, max_new_tokens: int = 1
         
         # Generate response
         response = pipe(
-            prompt,
-            max_new_tokens=max_new_tokens,
+            prompt, 
+            max_new_tokens=max_new_tokens, 
             do_sample=True,
             temperature=0.2,
             pad_token_id=getattr(pipe, 'tokenizer', None) and pipe.tokenizer.eos_token_id
