@@ -171,5 +171,40 @@ def install():
         sys.exit(1)
 
 
+@cli.command()
+def models():
+    """List available models and setup token configuration."""
+    from .llm.llm_utils import list_available_models, setup_huggingface_token
+    
+    print("🤖 Repo Runner Model Configuration")
+    print("=" * 50)
+    
+    # List available models
+    list_available_models()
+    
+    print("\n" + "=" * 50)
+    
+    # Setup token configuration
+    setup_huggingface_token()
+    
+    print("\n💡 Quick Start:")
+    print("1. Run: repo_runner install")
+    print("2. Run: repo_runner run /path/to/repo")
+    print("3. Models will be downloaded automatically!")
+
+
+@cli.command()
+def test_models():
+    """Test all models to ensure they work correctly."""
+    from .test_models import test_model_loading, print_summary
+    
+    print("🧪 Testing All Models")
+    print("This will test that each agent's model loads and generates responses.")
+    print("This may take a few minutes for the first run as models are downloaded.")
+    
+    results = test_model_loading()
+    print_summary(results)
+
+
 if __name__ == '__main__':
     cli()

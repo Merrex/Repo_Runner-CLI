@@ -5,57 +5,111 @@ from typing import Dict, Any, Optional
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
 
-# === Agent-to-model configuration ===
-# Optimized model selection for each agent with appropriate token limits
+# === FREE, ACCESSIBLE MODEL CONFIGURATION ===
+# All models are free, open-source, and don't require authentication
 AGENT_LLM_CONFIG = {
     'detection_agent': {
-        'model_name': os.getenv('DETECTION_MODEL', 'HuggingFaceH4/zephyr-1.3b'),
+        'model_name': os.getenv('DETECTION_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('DETECTION_TOKEN', None),
         'max_tokens': 512,
         'temperature': 0.1,
         'max_input_length': 2048
     },
     'requirements_agent': {
-        'model_name': os.getenv('REQUIREMENTS_MODEL', 'mistralai/Mistral-7B-Instruct-v0.2'),
+        'model_name': os.getenv('REQUIREMENTS_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('REQUIREMENTS_TOKEN', None),
         'max_tokens': 1024,
         'temperature': 0.2,
         'max_input_length': 4096
     },
     'setup_agent': {
-        'model_name': os.getenv('SETUP_MODEL', 'mistralai/Mistral-7B-Instruct-v0.2'),
+        'model_name': os.getenv('SETUP_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('SETUP_TOKEN', None),
         'max_tokens': 1024,
         'temperature': 0.2,
         'max_input_length': 4096
     },
     'fixer_agent': {
-        'model_name': os.getenv('FIXER_MODEL', 'WizardLM/WizardCoder-1B-V1.0'),
+        'model_name': os.getenv('FIXER_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('FIXER_TOKEN', None),
         'max_tokens': 768,
         'temperature': 0.1,
         'max_input_length': 3072
     },
     'db_agent': {
-        'model_name': os.getenv('DB_MODEL', 'mistralai/Mistral-7B-Instruct-v0.2'),
+        'model_name': os.getenv('DB_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('DB_TOKEN', None),
         'max_tokens': 1024,
         'temperature': 0.2,
         'max_input_length': 4096
     },
     'health_agent': {
-        'model_name': os.getenv('HEALTH_MODEL', 'HuggingFaceH4/zephyr-1.3b'),
+        'model_name': os.getenv('HEALTH_MODEL', 'microsoft/DialoGPT-small'),
         'token': os.getenv('HEALTH_TOKEN', None),
         'max_tokens': 512,
         'temperature': 0.1,
         'max_input_length': 2048
     },
     'runner_agent': {
-        'model_name': os.getenv('RUNNER_MODEL', 'mistralai/Mistral-7B-Instruct-v0.2'),
+        'model_name': os.getenv('RUNNER_MODEL', 'microsoft/DialoGPT-medium'),
         'token': os.getenv('RUNNER_TOKEN', None),
         'max_tokens': 1024,
         'temperature': 0.2,
         'max_input_length': 4096
+    },
+}
+
+# === ADVANCED MODEL CONFIGURATION (Optional) ===
+# For users who want to use more powerful models with tokens
+ADVANCED_MODEL_CONFIG = {
+    'detection_agent': {
+        'model_name': 'microsoft/DialoGPT-large',
+        'token': None,
+        'max_tokens': 1024,
+        'temperature': 0.1,
+        'max_input_length': 4096
+    },
+    'requirements_agent': {
+        'model_name': 'microsoft/DialoGPT-large',
+        'token': None,
+        'max_tokens': 2048,
+        'temperature': 0.2,
+        'max_input_length': 8192
+    },
+    'setup_agent': {
+        'model_name': 'microsoft/DialoGPT-large',
+        'token': None,
+        'max_tokens': 2048,
+        'temperature': 0.2,
+        'max_input_length': 8192
+    },
+    'fixer_agent': {
+        'model_name': 'microsoft/DialoGPT-large',
+        'token': None,
+        'max_tokens': 1536,
+        'temperature': 0.1,
+        'max_input_length': 6144
+    },
+    'db_agent': {
+        'model_name': 'microsoft/DialoGPT-large',
+        'token': None,
+        'max_tokens': 2048,
+        'temperature': 0.2,
+        'max_input_length': 8192
+    },
+    'health_agent': {
+        'model_name': 'microsoft/DialoGPT-medium',
+        'token': None,
+        'max_tokens': 1024,
+        'temperature': 0.1,
+        'max_input_length': 4096
+    },
+    'runner_agent': {
+        'model_name': 'microsoft/DialoGPT-large',
+        'token': None,
+        'max_tokens': 2048,
+        'temperature': 0.2,
+        'max_input_length': 8192
     },
 }
 
@@ -116,58 +170,6 @@ LOCAL_MODEL_CONFIG = {
     }
 }
 
-# Recommended models for production (commented out for local testing)
-RECOMMENDED_MODEL_CONFIG = {
-    'detection_agent': {
-        'model': 'microsoft/DialoGPT-medium',  # 345M parameters
-        'max_tokens': 1024,
-        'temperature': 0.3,
-        'fallback': 'microsoft/DialoGPT-small'
-    },
-    'requirements_agent': {
-        'model': 'microsoft/DialoGPT-large',  # 774M parameters
-        'max_tokens': 2048,
-        'temperature': 0.4,
-        'fallback': 'microsoft/DialoGPT-medium'
-    },
-    'setup_agent': {
-        'model': 'microsoft/DialoGPT-large',  # 774M parameters
-        'max_tokens': 2048,
-        'temperature': 0.3,
-        'fallback': 'microsoft/DialoGPT-medium'
-    },
-    'db_agent': {
-        'model': 'microsoft/DialoGPT-large',  # 774M parameters
-        'max_tokens': 2048,
-        'temperature': 0.3,
-        'fallback': 'microsoft/DialoGPT-medium'
-    },
-    'runner_agent': {
-        'model': 'microsoft/DialoGPT-large',  # 774M parameters
-        'max_tokens': 2048,
-        'temperature': 0.3,
-        'fallback': 'microsoft/DialoGPT-medium'
-    },
-    'health_agent': {
-        'model': 'microsoft/DialoGPT-medium',  # 345M parameters
-        'max_tokens': 1024,
-        'temperature': 0.2,
-        'fallback': 'microsoft/DialoGPT-small'
-    },
-    'fixer_agent': {
-        'model': 'microsoft/DialoGPT-large',  # 774M parameters
-        'max_tokens': 2048,
-        'temperature': 0.4,
-        'fallback': 'microsoft/DialoGPT-medium'
-    },
-    'orchestrator': {
-        'model': 'microsoft/DialoGPT-large',  # 774M parameters
-        'max_tokens': 2048,
-        'temperature': 0.3,
-        'fallback': 'microsoft/DialoGPT-medium'
-    }
-}
-
 def get_model_config(agent_name: str) -> Dict[str, Any]:
     """Get model configuration for an agent."""
     # Use local config for testing, can be overridden by environment
@@ -181,9 +183,13 @@ def get_model_config(agent_name: str) -> Dict[str, Any]:
     return config
 
 def get_llm_pipeline(agent_name: str):
+    """Get LLM pipeline with fallback to free models."""
+    # Try to get token from environment
+    token = os.getenv(f'{agent_name.upper()}_TOKEN')
+    
+    # Use free models by default
     config = AGENT_LLM_CONFIG.get(agent_name, AGENT_LLM_CONFIG['setup_agent'])
     model_name = config['model_name']
-    token = config['token']
     cache_key = (model_name, token)
     
     if cache_key in _llm_pipes:
@@ -226,9 +232,9 @@ def get_llm_pipeline(agent_name: str):
         
     except Exception as e:
         print(f"Failed to load model {model_name} for {agent_name}: {e}")
-        # Fallback to a smaller model
+        # Fallback to a smaller, more reliable model
         fallback_config = {
-            'model_name': 'microsoft/DialoGPT-medium',
+            'model_name': 'microsoft/DialoGPT-small',
             'max_tokens': 256,
             'temperature': 0.2,
             'max_input_length': 1024
@@ -257,64 +263,68 @@ def _create_fallback_pipeline(config):
         print(f"Fallback pipeline also failed: {e}")
         return None
 
-def generate_code_with_llm(prompt: str, agent_name: str = 'setup_agent', max_new_tokens: int = None, temperature: float = None) -> str:
-    pipe = get_llm_pipeline(agent_name)
-    
-    if pipe is None:
-        return f"LLM pipeline failed to load for {agent_name}. Please check the project manually."
-    
-    config = AGENT_LLM_CONFIG.get(agent_name, AGENT_LLM_CONFIG['setup_agent'])
-    
-    # Use agent-specific settings if not provided
-    if max_new_tokens is None:
-        max_new_tokens = config.get('max_tokens', 512)
-    if temperature is None:
-        temperature = config.get('temperature', 0.2)
-    
-    # Truncate prompt to fit within model's context window
-    max_input_length = config.get('max_input_length', 2048)
-    
-    # Tokenize and check length
-    tokens = pipe.tokenizer.encode(prompt, return_tensors="pt")
-    if tokens.shape[1] > max_input_length:
-        # Truncate to fit within context window
-        truncated_tokens = tokens[0, :max_input_length]
-        prompt = pipe.tokenizer.decode(truncated_tokens, skip_special_tokens=True)
-        prompt += "\n\n[Content truncated for model context limit]"
-    
+def generate_code_with_llm(prompt: str, agent_name: str, max_new_tokens: int = 100) -> str:
+    """Generate code using LLM with proper error handling."""
     try:
-        # Generate with optimized parameters
-        output = pipe(
-            prompt, 
-            max_new_tokens=max_new_tokens, 
-            temperature=temperature, 
+        pipe = get_llm_pipeline(agent_name)
+        if pipe is None:
+            return f"# LLM not available for {agent_name}\n# Manual intervention required"
+        
+        # Generate response
+        response = pipe(
+            prompt,
+            max_new_tokens=max_new_tokens,
             do_sample=True,
-            pad_token_id=pipe.tokenizer.eos_token_id,
-            eos_token_id=pipe.tokenizer.eos_token_id,
-            repetition_penalty=1.1,
-            top_p=0.9,
-            top_k=50
+            temperature=0.2,
+            pad_token_id=pipe.tokenizer.eos_token_id
         )
         
-        # Extract generated text (remove input prompt)
-        generated_text = output[0]["generated_text"]
-        if generated_text.startswith(prompt):
-            generated_text = generated_text[len(prompt):].strip()
-        
-        return generated_text
+        return response[0]['generated_text']
         
     except Exception as e:
-        # Provide specific fallback responses based on agent type
-        fallback_responses = {
-            'detection_agent': "Detected project structure. Found frontend and backend components.",
-            'requirements_agent': "Identified common dependencies. Check requirements.txt and package.json.",
-            'setup_agent': "Setup completed. Install dependencies and configure environment.",
-            'fixer_agent': "Issues detected. Review logs and fix manually.",
-            'db_agent': "Database setup required. Check configuration files.",
-            'health_agent': "Health check completed. Monitor application status.",
-            'runner_agent': "Application startup initiated. Check logs for status."
-        }
-        return fallback_responses.get(agent_name, f"LLM generation failed: {str(e)}. Please check the project manually.")
+        print(f"Error generating code for {agent_name}: {e}")
+        return f"# Error in {agent_name}: {str(e)}\n# Manual intervention required"
+
+def setup_huggingface_token():
+    """Setup Hugging Face token for advanced models."""
+    print("🔑 Hugging Face Token Setup")
+    print("=" * 40)
+    print("For advanced models that require authentication, you can:")
+    print("1. Get a free token from: https://huggingface.co/settings/tokens")
+    print("2. Set environment variables:")
+    print("   export DETECTION_TOKEN='your_token_here'")
+    print("   export REQUIREMENTS_TOKEN='your_token_here'")
+    print("   export SETUP_TOKEN='your_token_here'")
+    print("   export FIXER_TOKEN='your_token_here'")
+    print("   export DB_TOKEN='your_token_here'")
+    print("   export HEALTH_TOKEN='your_token_here'")
+    print("   export RUNNER_TOKEN='your_token_here'")
+    print("\n3. Or create a .env file with your tokens")
+    print("\nNote: Free models work without tokens!")
+
+def list_available_models():
+    """List available models for each agent."""
+    print("📋 Available Models for Each Agent")
+    print("=" * 40)
+    
+    models = {
+        'detection_agent': ['microsoft/DialoGPT-small', 'microsoft/DialoGPT-medium', 'microsoft/DialoGPT-large'],
+        'requirements_agent': ['microsoft/DialoGPT-medium', 'microsoft/DialoGPT-large'],
+        'setup_agent': ['microsoft/DialoGPT-medium', 'microsoft/DialoGPT-large'],
+        'fixer_agent': ['microsoft/DialoGPT-medium', 'microsoft/DialoGPT-large'],
+        'db_agent': ['microsoft/DialoGPT-medium', 'microsoft/DialoGPT-large'],
+        'health_agent': ['microsoft/DialoGPT-small', 'microsoft/DialoGPT-medium'],
+        'runner_agent': ['microsoft/DialoGPT-medium', 'microsoft/DialoGPT-large']
+    }
+    
+    for agent, model_list in models.items():
+        print(f"\n{agent.replace('_', ' ').title()}:")
+        for model in model_list:
+            print(f"  - {model}")
+    
+    print("\n💡 All models are free and don't require authentication!")
+    print("💡 Set environment variables to use specific models:")
+    print("   export DETECTION_MODEL='microsoft/DialoGPT-large'")
 
 def analyze_with_llm(content: str, agent_name: str = 'default') -> Dict[str, Any]:
     """Analyze content using LLM with structured output."""
