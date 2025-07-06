@@ -505,7 +505,8 @@ class AutonomousServiceOrchestrator:
 class Orchestrator:
     """Enhanced orchestrator with autonomous service management"""
     
-    def __init__(self):
+    def __init__(self, timeout=300):
+        self.timeout = timeout
         self.service_orchestrator = AutonomousServiceOrchestrator()
         self.detection_results = {}
         self.port_manager = None
@@ -514,6 +515,80 @@ class Orchestrator:
         """Set the port manager for the orchestrator"""
         self.port_manager = port_manager
         self.service_orchestrator.port_manager = port_manager
+    
+    def run(self, repo_path: str, mode: str = 'local') -> Dict[str, Any]:
+        """Main run method that orchestrates the entire workflow"""
+        print("🎯 Starting intelligent workflow orchestration...")
+        
+        try:
+            # Import required agents
+            from .detection_agent import DetectionAgent
+            from .requirements_agent import RequirementsAgent
+            from .setup_agent import SetupAgent
+            from .port_manager_agent import PortManagerAgent
+            from .health_agent import HealthAgent
+            
+            # Initialize agents
+            detection_agent = DetectionAgent()
+            requirements_agent = RequirementsAgent()
+            setup_agent = SetupAgent()
+            port_manager_agent = PortManagerAgent()
+            health_agent = HealthAgent()
+            
+            # Set port manager for orchestrator
+            self.set_port_manager(port_manager_agent.port_manager)
+            
+            # Phase 1: Repository Analysis
+            print("\n🔄 Phase: Repository Analysis")
+            detection_results = detection_agent.detect_project_structure(repo_path)
+            
+            if detection_results['status'] == 'error':
+                return {'status': 'error', 'error': detection_results['error']}
+            
+            # Phase 2: Port Management
+            print("\n🔄 Phase: Port Management")
+            port_results = port_manager_agent.manage_ports(repo_path)
+            
+            # Phase 3: Environment Assessment
+            print("\n🔄 Phase: Environment Assessment")
+            requirements_results = requirements_agent.assess_requirements(repo_path)
+            
+            # Phase 4: Setup
+            print("\n🔄 Phase: Setup")
+            setup_results = setup_agent.setup_project(repo_path)
+            
+            # Phase 5: Autonomous Service Orchestration
+            print("\n🔄 Phase: Service Orchestration")
+            orchestration_results = self.orchestrate(repo_path, detection_results)
+            
+            # Phase 6: Health Check
+            print("\n🔄 Phase: Health Check")
+            health_results = health_agent.check_health(repo_path)
+            
+            # Generate final summary
+            final_result = {
+                'status': 'success',
+                'detection': detection_results,
+                'port_management': port_results,
+                'requirements': requirements_results,
+                'setup': setup_results,
+                'orchestration': orchestration_results,
+                'health': health_results,
+                'mode': mode,
+                'timeout': self.timeout
+            }
+            
+            print("\n✅ Workflow completed successfully!")
+            return final_result
+            
+        except Exception as e:
+            print(f"❌ Workflow failed: {e}")
+            return {
+                'status': 'error',
+                'error': str(e),
+                'mode': mode,
+                'timeout': self.timeout
+            }
     
     def orchestrate(self, repo_path: str, detection_results: Dict[str, Any]) -> Dict[str, Any]:
         """Enhanced orchestration with autonomous service management"""
