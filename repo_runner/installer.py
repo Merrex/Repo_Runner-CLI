@@ -152,27 +152,47 @@ class SystemInstaller:
     def verify_installation(self):
         """Verify that all required dependencies are installed."""
         print("🔍 Verifying installation...")
+        print(f"Python version: {sys.version}")
+        print(f"Python executable: {sys.executable}")
+        print(f"Python path: {sys.path[:3]}...")  # Show first 3 entries
         
-        # Check Python packages
-        required_packages = [
-            "click", "requests", "PyYAML", "python-dotenv",
-            "transformers", "torch", "accelerate", "psutil",
-            "colorama", "rich", "jinja2"
-        ]
+        # Check Python packages with proper import names
+        package_imports = {
+            "click": "click",
+            "requests": "requests", 
+            "PyYAML": "yaml",  # PyYAML is imported as yaml
+            "python-dotenv": "dotenv",  # python-dotenv is imported as dotenv
+            "transformers": "transformers",
+            "torch": "torch",
+            "accelerate": "accelerate",
+            "psutil": "psutil",
+            "colorama": "colorama",
+            "rich": "rich",
+            "jinja2": "jinja2"
+        }
         
         missing_packages = []
-        for package in required_packages:
+        for package_name, import_name in package_imports.items():
             try:
-                __import__(package)
-                print(f"  ✅ {package}")
-            except ImportError:
-                missing_packages.append(package)
-                print(f"  ❌ {package}")
+                __import__(import_name)
+                print(f"  ✅ {package_name}")
+            except ImportError as e:
+                missing_packages.append(package_name)
+                print(f"  ❌ {package_name} (error: {e})")
         
         # Check system tools
         system_tools = ["git", "curl"]
         if self.is_linux or self.is_macos:
-            system_tools.append("node")
+            # Check for both 'node' and 'nodejs' as Node.js can be installed as either
+            node_result = subprocess.run(["which", "node"], capture_output=True)
+            nodejs_result = subprocess.run(["which", "nodejs"], capture_output=True)
+            if node_result.returncode == 0:
+                print(f"  ✅ node")
+            elif nodejs_result.returncode == 0:
+                print(f"  ✅ nodejs")
+            else:
+                print(f"  ❌ node/nodejs")
+                missing_packages.append("node")
         
         for tool in system_tools:
             result = subprocess.run(["which", tool], capture_output=True)
@@ -186,7 +206,7 @@ class SystemInstaller:
             print(f"\n⚠️  Missing packages: {missing_packages}")
             
             # Try to install missing Python packages
-            missing_python_packages = [pkg for pkg in missing_packages if pkg in required_packages]
+            missing_python_packages = [pkg for pkg in missing_packages if pkg in package_imports]
             if missing_python_packages:
                 print(f"🔄 Retrying installation of missing packages: {missing_python_packages}")
                 try:
@@ -199,12 +219,12 @@ class SystemInstaller:
                     # Verify again
                     print("🔍 Re-verifying installation...")
                     all_installed = True
-                    for package in required_packages:
+                    for package_name, import_name in package_imports.items():
                         try:
-                            __import__(package)
-                            print(f"  ✅ {package}")
+                            __import__(import_name)
+                            print(f"  ✅ {package_name}")
                         except ImportError:
-                            print(f"  ❌ {package}")
+                            print(f"  ❌ {package_name}")
                             all_installed = False
                     
                     if all_installed:
