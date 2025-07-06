@@ -4,259 +4,414 @@ import psutil
 import os
 import time
 from typing import Dict, List, Optional, Tuple
+import requests
+import json
+from pathlib import Path
 
-class PortManagerAgent:
-    """Manages port allocation, checking availability, and freeing occupied ports."""
+class EnvironmentAwarePortManager:
+    """Enhanced port manager that's aware of different environments (Colab, local, Docker, K8s)"""
     
     def __init__(self):
-        # Default port mappings for common services
-        self.default_ports = {
-            'backend': 8000,
-            'frontend': 3000,
-            'database': 5432,
-            'redis': 6379,
-            'mongodb': 27017,
-            'elasticsearch': 9200,
-            'kibana': 5601,
-            'postgres': 5432,
-            'mysql': 3306,
-            'nginx': 80,
-            'apache': 8080
+        self.environment = self.detect_environment()
+        self.port_mappings = {}
+        self.tunnels = {}
+        print(f"🔍 Detected environment: {self.environment}")
+    
+    def detect_environment(self) -> str:
+        """Detect the current environment"""
+        # Check for Colab
+        if 'COLAB_GPU' in os.environ or 'COLAB_TPU' in os.environ:
+            return 'colab'
+        
+        # Check for Google Cloud
+        if 'GOOGLE_CLOUD_PROJECT' in os.environ:
+            return 'gcp'
+        
+        # Check for Kubernetes
+        if 'KUBERNETES_SERVICE_HOST' in os.environ:
+            return 'kubernetes'
+        
+        # Check for Docker
+        if os.path.exists('/.dockerenv') or os.path.exists('/proc/1/cgroup') and 'docker' in open('/proc/1/cgroup').read():
+            return 'docker'
+        
+        # Check for AWS
+        if 'AWS_EXECUTION_ENV' in os.environ:
+            return 'aws'
+        
+        # Default to local
+        return 'local'
+    
+    def setup_port_access(self, port: int, service_name: str = None) -> Dict[str, str]:
+        """Setup port access based on environment"""
+        print(f"🔌 Setting up port access for port {port} in {self.environment} environment")
+        
+        if self.environment == 'colab':
+            return self.setup_colab_access(port, service_name)
+        elif self.environment == 'kubernetes':
+            return self.setup_k8s_access(port, service_name)
+        elif self.environment == 'docker':
+            return self.setup_docker_access(port, service_name)
+        elif self.environment == 'gcp':
+            return self.setup_gcp_access(port, service_name)
+        else:
+            return self.setup_local_access(port, service_name)
+    
+    def setup_colab_access(self, port: int, service_name: str = None) -> Dict[str, str]:
+        """Setup ngrok tunnel for Colab environment"""
+        try:
+            # Install pyngrok if not available
+            try:
+                from pyngrok import ngrok
+            except ImportError:
+                print("📦 Installing pyngrok for Colab environment...")
+                subprocess.run([sys.executable, "-m", "pip", "install", "pyngrok"], check=True)
+                from pyngrok import ngrok
+            
+            # Create tunnel
+            tunnel = ngrok.connect(port)
+            public_url = tunnel.public_url
+            
+            self.tunnels[port] = tunnel
+            self.port_mappings[port] = {
+                'local_url': f"http://localhost:{port}",
+                'public_url': public_url,
+                'environment': 'colab',
+                'service_name': service_name
+            }
+            
+            print(f"✅ Colab access setup: {public_url}")
+            return self.port_mappings[port]
+            
+        except Exception as e:
+            print(f"❌ Failed to setup Colab access: {e}")
+            return self.setup_local_access(port, service_name)
+    
+    def setup_k8s_access(self, port: int, service_name: str = None) -> Dict[str, str]:
+        """Setup Kubernetes service access"""
+        try:
+            # Create Kubernetes service
+            service_name = service_name or f"repo-runner-service-{port}"
+            
+            # Create service YAML
+            service_yaml = f"""
+apiVersion: v1
+kind: Service
+metadata:
+  name: {service_name}
+spec:
+  selector:
+    app: repo-runner
+  ports:
+  - protocol: TCP
+    port: {port}
+    targetPort: {port}
+  type: LoadBalancer
+"""
+            
+            # Apply service
+            with open(f"/tmp/{service_name}.yaml", 'w') as f:
+                f.write(service_yaml)
+            
+            subprocess.run(['kubectl', 'apply', '-f', f"/tmp/{service_name}.yaml"], check=True)
+            
+            # Get external IP
+            time.sleep(5)  # Wait for service to be ready
+            result = subprocess.run(['kubectl', 'get', 'service', service_name, '-o', 'jsonpath={.status.loadBalancer.ingress[0].ip}'], 
+                                  capture_output=True, text=True)
+            
+            external_ip = result.stdout.strip()
+            if external_ip:
+                public_url = f"http://{external_ip}:{port}"
+            else:
+                public_url = f"http://{service_name}.default.svc.cluster.local:{port}"
+            
+            self.port_mappings[port] = {
+                'local_url': f"http://localhost:{port}",
+                'public_url': public_url,
+                'environment': 'kubernetes',
+                'service_name': service_name
+            }
+            
+            print(f"✅ Kubernetes access setup: {public_url}")
+            return self.port_mappings[port]
+            
+        except Exception as e:
+            print(f"❌ Failed to setup Kubernetes access: {e}")
+            return self.setup_local_access(port, service_name)
+    
+    def setup_docker_access(self, port: int, service_name: str = None) -> Dict[str, str]:
+        """Setup Docker port mapping"""
+        try:
+            # Get container IP
+            result = subprocess.run(['hostname', '-i'], capture_output=True, text=True)
+            container_ip = result.stdout.strip()
+            
+            # Map port to host
+            host_port = self.find_available_port(port)
+            subprocess.run(['docker', 'run', '-d', '-p', f"{host_port}:{port}", '--name', f"repo-runner-{port}"], check=True)
+            
+            public_url = f"http://localhost:{host_port}"
+            
+            self.port_mappings[port] = {
+                'local_url': f"http://localhost:{port}",
+                'public_url': public_url,
+                'environment': 'docker',
+                'service_name': service_name
+            }
+            
+            print(f"✅ Docker access setup: {public_url}")
+            return self.port_mappings[port]
+            
+        except Exception as e:
+            print(f"❌ Failed to setup Docker access: {e}")
+            return self.setup_local_access(port, service_name)
+    
+    def setup_gcp_access(self, port: int, service_name: str = None) -> Dict[str, str]:
+        """Setup Google Cloud access"""
+        try:
+            # Use Cloud Run or App Engine for GCP
+            service_name = service_name or f"repo-runner-{port}"
+            
+            # For now, return local access (GCP setup requires more complex configuration)
+            return self.setup_local_access(port, service_name)
+            
+        except Exception as e:
+            print(f"❌ Failed to setup GCP access: {e}")
+            return self.setup_local_access(port, service_name)
+    
+    def setup_local_access(self, port: int, service_name: str = None) -> Dict[str, str]:
+        """Setup local access"""
+        local_url = f"http://localhost:{port}"
+        
+        self.port_mappings[port] = {
+            'local_url': local_url,
+            'public_url': local_url,
+            'environment': 'local',
+            'service_name': service_name
         }
         
-        # Port ranges for dynamic allocation
-        self.backend_port_range = (8000, 8100)
-        self.frontend_port_range = (3000, 3100)
-        self.database_port_range = (5432, 5442)
+        print(f"✅ Local access setup: {local_url}")
+        return self.port_mappings[port]
     
-    def check_port_availability(self, port: int) -> bool:
-        """Check if a port is available."""
+    def find_available_port(self, preferred_port: int) -> int:
+        """Find an available port starting from preferred_port"""
+        port = preferred_port
+        while port < preferred_port + 100:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('localhost', port))
+                    return port
+            except OSError:
+                port += 1
+        return preferred_port
+    
+    def cleanup_tunnels(self):
+        """Cleanup all tunnels"""
+        for port, tunnel in self.tunnels.items():
+            try:
+                tunnel.close()
+                print(f"🔌 Closed tunnel for port {port}")
+            except Exception as e:
+                print(f"❌ Failed to close tunnel for port {port}: {e}")
+    
+    def get_port_mappings(self) -> Dict[int, Dict[str, str]]:
+        """Get all port mappings"""
+        return self.port_mappings
+    
+    def health_check_port(self, port: int) -> bool:
+        """Check if a port is accessible"""
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(1)
-                result = sock.connect_ex(('localhost', port))
-                return result != 0  # Port is available if connection fails
+            mapping = self.port_mappings.get(port)
+            if not mapping:
+                return False
+            
+            url = mapping['public_url']
+            response = requests.get(url, timeout=5)
+            return response.status_code < 500
         except Exception:
             return False
+
+# Enhanced Port Manager Agent
+class PortManagerAgent:
+    """Enhanced port manager agent with environment awareness"""
     
-    def find_free_port(self, start_port: int, end_port: int) -> Optional[int]:
-        """Find a free port in the given range."""
-        for port in range(start_port, end_port + 1):
-            if self.check_port_availability(port):
-                return port
-        return None
+    def __init__(self):
+        self.port_manager = EnvironmentAwarePortManager()
+        self.managed_ports = {}
     
-    def get_process_using_port(self, port: int) -> Optional[Dict]:
-        """Get information about the process using a specific port."""
+    def manage_ports(self, repo_path: str) -> Dict[str, any]:
+        """Enhanced port management with environment awareness"""
+        print("🔌 Managing port allocation and availability...")
+        
         try:
-            for conn in psutil.net_connections(kind='inet'):
-                if conn.laddr.port == port:
-                    if conn.pid:
-                        process = psutil.Process(conn.pid)
-                        return {
-                            'pid': conn.pid,
-                            'name': process.name(),
-                            'cmdline': ' '.join(process.cmdline()),
-                            'status': conn.status
-                        }
-        except Exception:
-            pass
-        return None
-    
-    def kill_process_on_port(self, port: int) -> bool:
-        """Kill the process using a specific port."""
-        process_info = self.get_process_using_port(port)
-        if process_info:
-            try:
-                process = psutil.Process(process_info['pid'])
-                process.terminate()
-                time.sleep(1)
-                if process.is_running():
-                    process.kill()
-                return True
-            except Exception:
-                return False
-        return False
-    
-    def allocate_ports_for_services(self, services: List[Dict]) -> Dict[str, int]:
-        """Allocate appropriate ports for detected services."""
-        allocated_ports = {}
-        
-        for service in services:
-            service_type = service.get('type')
-            service_role = service.get('role', 'unknown')
+            # Detect services that need ports
+            services = self.detect_services_needing_ports(repo_path)
             
-            if service_type == 'python' and service_role == 'backend':
-                port = self._allocate_backend_port()
-                allocated_ports['backend'] = port
-                
-            elif service_type == 'node' and service_role == 'frontend':
-                port = self._allocate_frontend_port()
-                allocated_ports['frontend'] = port
-                
-            elif service_type == 'docker' and service_role == 'db':
-                port = self._allocate_database_port()
-                allocated_ports['database'] = port
-        
-        return allocated_ports
-    
-    def _allocate_backend_port(self) -> int:
-        """Allocate a port for backend services."""
-        # Try default backend port first
-        if self.check_port_availability(self.default_ports['backend']):
-            return self.default_ports['backend']
-        
-        # Find free port in backend range
-        free_port = self.find_free_port(*self.backend_port_range)
-        if free_port:
-            return free_port
-        
-        # If no free port, try to free the default port
-        if self.kill_process_on_port(self.default_ports['backend']):
-            return self.default_ports['backend']
-        
-        # Last resort: find any free port
-        return self.find_free_port(8000, 9000) or 8000
-    
-    def _allocate_frontend_port(self) -> int:
-        """Allocate a port for frontend services."""
-        # Try default frontend port first
-        if self.check_port_availability(self.default_ports['frontend']):
-            return self.default_ports['frontend']
-        
-        # Find free port in frontend range
-        free_port = self.find_free_port(*self.frontend_port_range)
-        if free_port:
-            return free_port
-        
-        # If no free port, try to free the default port
-        if self.kill_process_on_port(self.default_ports['frontend']):
-            return self.default_ports['frontend']
-        
-        # Last resort: find any free port
-        return self.find_free_port(3000, 4000) or 3000
-    
-    def _allocate_database_port(self) -> int:
-        """Allocate a port for database services."""
-        # Try default database port first
-        if self.check_port_availability(self.default_ports['database']):
-            return self.default_ports['database']
-        
-        # Find free port in database range
-        free_port = self.find_free_port(*self.database_port_range)
-        if free_port:
-            return free_port
-        
-        # If no free port, try to free the default port
-        if self.kill_process_on_port(self.default_ports['database']):
-            return self.default_ports['database']
-        
-        # Last resort: find any free port
-        return self.find_free_port(5432, 5532) or 5432
-    
-    def check_service_ports(self, services: List[Dict]) -> Dict[str, Dict]:
-        """Check the status of all service ports."""
-        port_status = {}
-        
-        for service in services:
-            service_type = service.get('type')
-            service_role = service.get('role', 'unknown')
+            if not services:
+                print("ℹ️ No services detected, skipping port management")
+                return {'status': 'no_services', 'message': 'No services detected'}
             
-            if service_type == 'python' and service_role == 'backend':
-                port = self.default_ports['backend']
-                status = self._check_service_port(port, 'Backend')
-                port_status['backend'] = status
-                
-            elif service_type == 'node' and service_role == 'frontend':
-                port = self.default_ports['frontend']
-                status = self._check_service_port(port, 'Frontend')
-                port_status['frontend'] = status
-                
-            elif service_type == 'docker' and service_role == 'db':
-                port = self.default_ports['database']
-                status = self._check_service_port(port, 'Database')
-                port_status['database'] = status
-        
-        return port_status
+            # Setup port access for each service
+            port_configs = {}
+            for service in services:
+                port_config = self.port_manager.setup_port_access(
+                    service['port'], 
+                    service['name']
+                )
+                port_configs[service['name']] = port_config
+                self.managed_ports[service['port']] = port_config
+            
+            print(f"✅ Port management completed for {len(services)} services")
+            return {
+                'status': 'success',
+                'services': port_configs,
+                'environment': self.port_manager.environment
+            }
+            
+        except Exception as e:
+            print(f"❌ Port management failed: {e}")
+            return {'status': 'error', 'error': str(e)}
     
-    def _check_service_port(self, port: int, service_name: str) -> Dict:
-        """Check the status of a specific service port."""
-        is_available = self.check_port_availability(port)
-        process_info = self.get_process_using_port(port)
+    def detect_services_needing_ports(self, repo_path: str) -> List[Dict]:
+        """Detect services that need port management"""
+        services = []
         
-        return {
-            'port': port,
-            'available': is_available,
-            'service_name': service_name,
-            'process_info': process_info,
-            'status': 'available' if is_available else 'occupied'
+        # Common port patterns
+        port_patterns = {
+            'backend': [8000, 5000, 3001, 8080],
+            'frontend': [3000, 3001, 8080, 4000],
+            'database': [5432, 3306, 27017, 6379],
+            'redis': [6379],
+            'elasticsearch': [9200],
+            'kafka': [9092],
+            'nginx': [80, 443]
         }
-    
-    def free_occupied_ports(self, services: List[Dict]) -> Dict[str, bool]:
-        """Free ports that are occupied by other processes."""
-        freed_ports = {}
         
-        for service in services:
-            service_type = service.get('type')
-            service_role = service.get('role', 'unknown')
+        # Scan for configuration files
+        for root, dirs, files in os.walk(repo_path):
+            for file in files:
+                if file in ['package.json', 'docker-compose.yml', 'docker-compose.yaml', 'dockerfile', 'Dockerfile']:
+                    # Analyze file to detect ports
+                    file_path = os.path.join(root, file)
+                    detected_ports = self.analyze_config_file(file_path)
+                    
+                    for port_info in detected_ports:
+                        service_name = port_info.get('service', 'unknown')
+                        port = port_info.get('port')
+                        
+                        if port:
+                            services.append({
+                                'name': service_name,
+                                'port': port,
+                                'config_file': file_path
+                            })
+        
+        return services
+    
+    def analyze_config_file(self, file_path: str) -> List[Dict]:
+        """Analyze configuration file to detect ports"""
+        ports = []
+        
+        try:
+            with open(file_path, 'r') as f:
+                content = f.read()
             
-            if service_type == 'python' and service_role == 'backend':
-                port = self.default_ports['backend']
-                freed_ports['backend'] = self.kill_process_on_port(port)
+            # Extract port information based on file type
+            if file_path.endswith('package.json'):
+                ports.extend(self.extract_ports_from_package_json(content))
+            elif file_path.endswith(('.yml', '.yaml')):
+                ports.extend(self.extract_ports_from_yaml(content))
+            elif file_path.endswith('dockerfile') or file_path.endswith('Dockerfile'):
+                ports.extend(self.extract_ports_from_dockerfile(content))
                 
-            elif service_type == 'node' and service_role == 'frontend':
-                port = self.default_ports['frontend']
-                freed_ports['frontend'] = self.kill_process_on_port(port)
+        except Exception as e:
+            print(f"❌ Failed to analyze {file_path}: {e}")
+        
+        return ports
+    
+    def extract_ports_from_package_json(self, content: str) -> List[Dict]:
+        """Extract ports from package.json"""
+        ports = []
+        try:
+            import json
+            data = json.loads(content)
+            
+            # Check for start scripts
+            scripts = data.get('scripts', {})
+            for script_name, script in scripts.items():
+                if 'start' in script_name.lower():
+                    # Look for port in script
+                    import re
+                    port_match = re.search(r'--port\s+(\d+)', script)
+                    if port_match:
+                        ports.append({
+                            'service': data.get('name', 'node-app'),
+                            'port': int(port_match.group(1))
+                        })
+            
+            # Default ports for common frameworks
+            if 'react' in content.lower():
+                ports.append({'service': 'react-app', 'port': 3000})
+            elif 'vue' in content.lower():
+                ports.append({'service': 'vue-app', 'port': 8080})
+            elif 'express' in content.lower():
+                ports.append({'service': 'express-app', 'port': 3000})
                 
-            elif service_type == 'docker' and service_role == 'db':
-                port = self.default_ports['database']
-                freed_ports['database'] = self.kill_process_on_port(port)
+        except Exception as e:
+            print(f"❌ Failed to parse package.json: {e}")
         
-        return freed_ports
+        return ports
     
-    def get_port_configuration(self, services: List[Dict]) -> Dict:
-        """Get complete port configuration for all services."""
-        # Check current port status
-        port_status = self.check_service_ports(services)
+    def extract_ports_from_yaml(self, content: str) -> List[Dict]:
+        """Extract ports from YAML files"""
+        ports = []
+        try:
+            import yaml
+            data = yaml.safe_load(content)
+            
+            # Handle docker-compose files
+            if 'services' in data:
+                for service_name, service_config in data['services'].items():
+                    if 'ports' in service_config:
+                        for port_mapping in service_config['ports']:
+                            if isinstance(port_mapping, str):
+                                # Format: "3000:3000"
+                                host_port, container_port = port_mapping.split(':')
+                                ports.append({
+                                    'service': service_name,
+                                    'port': int(container_port)
+                                })
+                            elif isinstance(port_mapping, dict):
+                                ports.append({
+                                    'service': service_name,
+                                    'port': port_mapping.get('target', 3000)
+                                })
+                                
+        except Exception as e:
+            print(f"❌ Failed to parse YAML: {e}")
         
-        # Free occupied ports if needed
-        freed_ports = self.free_occupied_ports(services)
-        
-        # Allocate ports
-        allocated_ports = self.allocate_ports_for_services(services)
-        
-        return {
-            'allocated_ports': allocated_ports,
-            'port_status': port_status,
-            'freed_ports': freed_ports,
-            'recommendations': self._generate_port_recommendations(port_status, freed_ports)
-        }
+        return ports
     
-    def _generate_port_recommendations(self, port_status: Dict, freed_ports: Dict) -> List[str]:
-        """Generate recommendations based on port status."""
-        recommendations = []
+    def extract_ports_from_dockerfile(self, content: str) -> List[Dict]:
+        """Extract ports from Dockerfile"""
+        ports = []
+        try:
+            import re
+            # Look for EXPOSE directives
+            expose_matches = re.findall(r'EXPOSE\s+(\d+)', content, re.IGNORECASE)
+            for port in expose_matches:
+                ports.append({
+                    'service': 'docker-service',
+                    'port': int(port)
+                })
+                
+        except Exception as e:
+            print(f"❌ Failed to parse Dockerfile: {e}")
         
-        for service, status in port_status.items():
-            if not status['available'] and freed_ports.get(service):
-                recommendations.append(f"Freed port {status['port']} for {service}")
-            elif not status['available']:
-                recommendations.append(f"Port {status['port']} is occupied by {status['process_info']['name'] if status['process_info'] else 'unknown process'}")
-            else:
-                recommendations.append(f"Port {status['port']} is available for {service}")
-        
-        return recommendations
+        return ports
     
-    def validate_port_configuration(self, allocated_ports: Dict[str, int]) -> Tuple[bool, List[str]]:
-        """Validate that the port configuration is valid."""
-        errors = []
-        used_ports = set()
-        
-        for service, port in allocated_ports.items():
-            if port in used_ports:
-                errors.append(f"Port {port} is allocated to multiple services")
-            elif not self.check_port_availability(port):
-                errors.append(f"Port {port} for {service} is not available")
-            else:
-                used_ports.add(port)
-        
-        return len(errors) == 0, errors
+    def cleanup(self):
+        """Cleanup all managed ports"""
+        self.port_manager.cleanup_tunnels()
+        print("🧹 Port management cleanup completed")

@@ -9,389 +9,546 @@ from .port_manager_agent import PortManagerAgent
 import time
 import signal
 from typing import Dict, List, Any
+import os
+import subprocess
+import threading
+from pathlib import Path
+import json
+import yaml
 
+class AutonomousServiceOrchestrator:
+    """Fully autonomous service orchestrator with environment awareness"""
+    
+    def __init__(self):
+        self.running_services = {}
+        self.service_processes = {}
+        self.port_manager = None  # Will be set by main orchestrator
+        self.environment = self.detect_environment()
+        self.service_dependencies = {}
+        self.startup_order = []
+        
+    def detect_environment(self) -> str:
+        """Detect the current environment"""
+        if 'COLAB_GPU' in os.environ or 'COLAB_TPU' in os.environ:
+            return 'colab'
+        elif 'KUBERNETES_SERVICE_HOST' in os.environ:
+            return 'kubernetes'
+        elif os.path.exists('/.dockerenv'):
+            return 'docker'
+        elif 'AWS_EXECUTION_ENV' in os.environ:
+            return 'aws'
+        else:
+            return 'local'
+    
+    def orchestrate_services(self, repo_path: str, detection_results: Dict[str, Any], port_manager=None) -> Dict[str, Any]:
+        """Fully autonomous service orchestration"""
+        print("🚀 Starting autonomous service orchestration...")
+        
+        self.port_manager = port_manager
+        
+        try:
+            # 1. Analyze service dependencies
+            self.analyze_service_dependencies(detection_results)
+            
+            # 2. Determine startup order
+            self.determine_startup_order()
+            
+            # 3. Setup environment-specific configurations
+            self.setup_environment_configs()
+            
+            # 4. Start services in correct order
+            startup_results = self.start_services_sequentially(repo_path)
+            
+            # 5. Monitor and validate services
+            health_results = self.monitor_services()
+            
+            # 6. Generate access URLs
+            access_urls = self.generate_access_urls()
+            
+            return {
+                'status': 'success',
+                'services_started': len(self.running_services),
+                'startup_order': self.startup_order,
+                'health_status': health_results,
+                'access_urls': access_urls,
+                'environment': self.environment
+            }
+            
+        except Exception as e:
+            print(f"❌ Service orchestration failed: {e}")
+            return {
+                'status': 'error',
+                'error': str(e),
+                'services_started': 0
+            }
+    
+    def analyze_service_dependencies(self, detection_results: Dict[str, Any]):
+        """Analyze service dependencies to determine startup order"""
+        print("🔍 Analyzing service dependencies...")
+        
+        services = detection_results.get('services', {})
+        self.service_dependencies = {}
+        
+        for service_path, service_info in services.items():
+            service_name = service_info.get('name', 'unknown')
+            service_type = service_info.get('type', 'unknown')
+            framework = service_info.get('framework', 'unknown')
+            role = service_info.get('role', 'unknown')
+            
+            # Determine dependencies based on service type and role
+            dependencies = self.determine_service_dependencies(service_info)
+            
+            self.service_dependencies[service_name] = {
+                'path': service_path,
+                'type': service_type,
+                'framework': framework,
+                'role': role,
+                'dependencies': dependencies,
+                'info': service_info
+            }
+        
+        print(f"✅ Analyzed {len(self.service_dependencies)} services")
+    
+    def determine_service_dependencies(self, service_info: Dict[str, Any]) -> List[str]:
+        """Determine what other services this service depends on"""
+        dependencies = []
+        service_type = service_info.get('type', 'unknown')
+        role = service_info.get('role', 'unknown')
+        
+        # Database dependencies
+        if role == 'backend':
+            # Check if backend needs database
+            if service_type == 'python':
+                if 'django' in str(service_info.get('requirements', [])):
+                    dependencies.append('database')
+                elif 'flask' in str(service_info.get('requirements', [])):
+                    dependencies.append('database')
+            elif service_type == 'node':
+                if 'mongoose' in str(service_info.get('dependencies', [])):
+                    dependencies.append('database')
+                elif 'sequelize' in str(service_info.get('dependencies', [])):
+                    dependencies.append('database')
+        
+        # Frontend depends on backend
+        if role == 'frontend':
+            dependencies.append('backend')
+        
+        # Redis dependencies
+        if 'redis' in str(service_info.get('dependencies', [])):
+            dependencies.append('redis')
+        
+        return dependencies
+    
+    def determine_startup_order(self):
+        """Determine the correct startup order based on dependencies"""
+        print("📋 Determining service startup order...")
+        
+        # Create dependency graph
+        dependency_graph = {}
+        for service_name, service_data in self.service_dependencies.items():
+            dependency_graph[service_name] = service_data['dependencies']
+        
+        # Topological sort to determine startup order
+        self.startup_order = self.topological_sort(dependency_graph)
+        
+        print(f"✅ Startup order determined: {' -> '.join(self.startup_order)}")
+    
+    def topological_sort(self, graph: Dict[str, List[str]]) -> List[str]:
+        """Perform topological sort to determine startup order"""
+        # Kahn's algorithm
+        in_degree = {node: 0 for node in graph}
+        
+        # Calculate in-degrees
+        for node in graph:
+            for neighbor in graph[node]:
+                if neighbor in in_degree:
+                    in_degree[neighbor] += 1
+        
+        # Find nodes with no incoming edges
+        queue = [node for node in in_degree if in_degree[node] == 0]
+        result = []
+        
+        while queue:
+            node = queue.pop(0)
+            result.append(node)
+            
+            # Reduce in-degree of neighbors
+            for neighbor in graph.get(node, []):
+                if neighbor in in_degree:
+                    in_degree[neighbor] -= 1
+                    if in_degree[neighbor] == 0:
+                        queue.append(neighbor)
+        
+        return result
+    
+    def setup_environment_configs(self):
+        """Setup environment-specific configurations"""
+        print(f"🔧 Setting up configurations for {self.environment} environment...")
+        
+        if self.environment == 'colab':
+            self.setup_colab_configs()
+        elif self.environment == 'docker':
+            self.setup_docker_configs()
+        elif self.environment == 'kubernetes':
+            self.setup_k8s_configs()
+        else:
+            self.setup_local_configs()
+    
+    def setup_colab_configs(self):
+        """Setup Colab-specific configurations"""
+        # Install ngrok if needed
+        try:
+            import pyngrok
+        except ImportError:
+            print("📦 Installing pyngrok for Colab environment...")
+            subprocess.run(['pip', 'install', 'pyngrok'], check=True)
+    
+    def setup_docker_configs(self):
+        """Setup Docker-specific configurations"""
+        # Ensure Docker is available
+        try:
+            subprocess.run(['docker', '--version'], check=True, capture_output=True)
+        except subprocess.CalledProcessError:
+            print("⚠️  Docker not available in this environment")
+    
+    def setup_k8s_configs(self):
+        """Setup Kubernetes-specific configurations"""
+        # Ensure kubectl is available
+        try:
+            subprocess.run(['kubectl', 'version'], check=True, capture_output=True)
+        except subprocess.CalledProcessError:
+            print("⚠️  kubectl not available in this environment")
+    
+    def setup_local_configs(self):
+        """Setup local environment configurations"""
+        # Check for common development tools
+        tools = ['npm', 'node', 'python', 'pip', 'git']
+        for tool in tools:
+            try:
+                subprocess.run([tool, '--version'], check=True, capture_output=True)
+            except subprocess.CalledProcessError:
+                print(f"⚠️  {tool} not available")
+    
+    def start_services_sequentially(self, repo_path: str) -> Dict[str, Any]:
+        """Start services in the determined order"""
+        print("🚀 Starting services in sequence...")
+        
+        startup_results = {}
+        
+        for service_name in self.startup_order:
+            if service_name in self.service_dependencies:
+                service_data = self.service_dependencies[service_name]
+                result = self.start_service(service_name, service_data, repo_path)
+                startup_results[service_name] = result
+                
+                if result['status'] == 'success':
+                    print(f"✅ {service_name} started successfully")
+                else:
+                    print(f"❌ {service_name} failed to start: {result.get('error', 'Unknown error')}")
+        
+        return startup_results
+    
+    def start_service(self, service_name: str, service_data: Dict[str, Any], repo_path: str) -> Dict[str, Any]:
+        """Start a specific service"""
+        try:
+            service_path = service_data['path']
+            service_type = service_data['type']
+            framework = service_data['framework']
+            role = service_data['role']
+            
+            full_service_path = os.path.join(repo_path, service_path)
+            
+            if not os.path.exists(full_service_path):
+                return {'status': 'error', 'error': f'Service path not found: {full_service_path}'}
+            
+            # Start service based on type
+            if service_type == 'node':
+                return self.start_node_service(service_name, full_service_path, framework, role)
+            elif service_type == 'python':
+                return self.start_python_service(service_name, full_service_path, framework, role)
+            elif service_type == 'docker':
+                return self.start_docker_service(service_name, full_service_path)
+            else:
+                return {'status': 'error', 'error': f'Unsupported service type: {service_type}'}
+                
+        except Exception as e:
+            return {'status': 'error', 'error': str(e)}
+    
+    def start_node_service(self, service_name: str, service_path: str, framework: str, role: str) -> Dict[str, Any]:
+        """Start a Node.js service"""
+        try:
+            # Install dependencies
+            print(f"📦 Installing dependencies for {service_name}...")
+            subprocess.run(['npm', 'install'], cwd=service_path, check=True)
+            
+            # Determine start command
+            if framework == 'react':
+                start_cmd = ['npm', 'start']
+            elif framework == 'vue':
+                start_cmd = ['npm', 'run', 'dev']
+            elif framework == 'express':
+                start_cmd = ['npm', 'start']
+            else:
+                start_cmd = ['npm', 'start']
+            
+            # Start service
+            process = subprocess.Popen(
+                start_cmd,
+                cwd=service_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            # Store process info
+            self.service_processes[service_name] = {
+                'process': process,
+                'type': 'node',
+                'path': service_path,
+                'role': role
+            }
+            
+            # Wait a bit for service to start
+            time.sleep(3)
+            
+            return {'status': 'success', 'pid': process.pid}
+            
+        except Exception as e:
+            return {'status': 'error', 'error': str(e)}
+    
+    def start_python_service(self, service_name: str, service_path: str, framework: str, role: str) -> Dict[str, Any]:
+        """Start a Python service"""
+        try:
+            # Install dependencies
+            print(f"📦 Installing dependencies for {service_name}...")
+            
+            requirements_file = os.path.join(service_path, 'requirements.txt')
+            if os.path.exists(requirements_file):
+                subprocess.run(['pip', 'install', '-r', 'requirements.txt'], cwd=service_path, check=True)
+            
+            # Determine start command
+            if framework == 'django':
+                start_cmd = ['python', 'manage.py', 'runserver', '0.0.0.0:8000']
+            elif framework == 'flask':
+                start_cmd = ['python', 'app.py']
+            elif framework == 'fastapi':
+                start_cmd = ['uvicorn', 'main:app', '--host', '0.0.0.0', '--port', '8000']
+            else:
+                # Try to find main file
+                main_files = ['app.py', 'main.py', 'server.py', 'index.py']
+                for main_file in main_files:
+                    if os.path.exists(os.path.join(service_path, main_file)):
+                        start_cmd = ['python', main_file]
+                        break
+                else:
+                    return {'status': 'error', 'error': 'No main Python file found'}
+            
+            # Start service
+            process = subprocess.Popen(
+                start_cmd,
+                cwd=service_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            # Store process info
+            self.service_processes[service_name] = {
+                'process': process,
+                'type': 'python',
+                'path': service_path,
+                'role': role
+            }
+            
+            # Wait a bit for service to start
+            time.sleep(3)
+            
+            return {'status': 'success', 'pid': process.pid}
+            
+        except Exception as e:
+            return {'status': 'error', 'error': str(e)}
+    
+    def start_docker_service(self, service_name: str, service_path: str) -> Dict[str, Any]:
+        """Start a Docker service"""
+        try:
+            # Check for docker-compose
+            docker_compose_file = os.path.join(service_path, 'docker-compose.yml')
+            if os.path.exists(docker_compose_file):
+                subprocess.run(['docker-compose', 'up', '-d'], cwd=service_path, check=True)
+            else:
+                # Check for Dockerfile
+                dockerfile = os.path.join(service_path, 'Dockerfile')
+                if os.path.exists(dockerfile):
+                    # Build and run
+                    subprocess.run(['docker', 'build', '-t', service_name, '.'], cwd=service_path, check=True)
+                    subprocess.run(['docker', 'run', '-d', '--name', service_name, service_name], cwd=service_path, check=True)
+                else:
+                    return {'status': 'error', 'error': 'No Docker configuration found'}
+            
+            return {'status': 'success'}
+            
+        except Exception as e:
+            return {'status': 'error', 'error': str(e)}
+    
+    def monitor_services(self) -> Dict[str, Any]:
+        """Monitor running services for health"""
+        print("🏥 Monitoring service health...")
+        
+        health_results = {}
+        
+        for service_name, process_info in self.service_processes.items():
+            process = process_info['process']
+            health_status = self.check_service_health(service_name, process_info)
+            health_results[service_name] = health_status
+        
+        return health_results
+    
+    def check_service_health(self, service_name: str, process_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Check health of a specific service"""
+        process = process_info['process']
+        service_type = process_info['type']
+        
+        # Check if process is still running
+        if process.poll() is None:
+            # Process is running, check if it's responding
+            if service_type == 'node':
+                return self.check_node_health(service_name, process_info)
+            elif service_type == 'python':
+                return self.check_python_health(service_name, process_info)
+            else:
+                return {'status': 'running', 'pid': process.pid}
+        else:
+            return {'status': 'stopped', 'exit_code': process.returncode}
+    
+    def check_node_health(self, service_name: str, process_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Check health of Node.js service"""
+        # Try to connect to the service
+        try:
+            import requests
+            # Common Node.js ports
+            ports = [3000, 3001, 8080, 4000, 5000]
+            
+            for port in ports:
+                try:
+                    response = requests.get(f'http://localhost:{port}', timeout=2)
+                    if response.status_code < 500:
+                        return {
+                            'status': 'healthy',
+                            'port': port,
+                            'response_time': response.elapsed.total_seconds()
+                        }
+                except requests.RequestException:
+                    continue
+            
+            return {'status': 'running', 'note': 'Service running but not responding on common ports'}
+            
+        except ImportError:
+            return {'status': 'running', 'note': 'requests not available for health check'}
+    
+    def check_python_health(self, service_name: str, process_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Check health of Python service"""
+        try:
+            import requests
+            # Common Python ports
+            ports = [8000, 5000, 8080, 3000]
+            
+            for port in ports:
+                try:
+                    response = requests.get(f'http://localhost:{port}', timeout=2)
+                    if response.status_code < 500:
+                        return {
+                            'status': 'healthy',
+                            'port': port,
+                            'response_time': response.elapsed.total_seconds()
+                        }
+                except requests.RequestException:
+                    continue
+            
+            return {'status': 'running', 'note': 'Service running but not responding on common ports'}
+            
+        except ImportError:
+            return {'status': 'running', 'note': 'requests not available for health check'}
+    
+    def generate_access_urls(self) -> Dict[str, str]:
+        """Generate access URLs for all services"""
+        print("🔗 Generating access URLs...")
+        
+        access_urls = {}
+        
+        if self.port_manager:
+            port_mappings = self.port_manager.get_port_mappings()
+            
+            for service_name, process_info in self.service_processes.items():
+                # Find the port for this service
+                for port, mapping in port_mappings.items():
+                    if mapping.get('service_name') == service_name:
+                        access_urls[service_name] = mapping['public_url']
+                        break
+                else:
+                    # Default URL
+                    access_urls[service_name] = f"http://localhost:3000"  # Default port
+        
+        return access_urls
+    
+    def stop_all_services(self):
+        """Stop all running services"""
+        print("🛑 Stopping all services...")
+        
+        for service_name, process_info in self.service_processes.items():
+            try:
+                process = process_info['process']
+                process.terminate()
+                process.wait(timeout=5)
+                print(f"✅ Stopped {service_name}")
+            except Exception as e:
+                print(f"❌ Failed to stop {service_name}: {e}")
+
+# Enhanced Orchestrator
 class Orchestrator:
-    """Intelligent orchestrator that dynamically decides which agents to use based on real-time conditions."""
+    """Enhanced orchestrator with autonomous service management"""
     
-    def __init__(self, timeout=300):  # 5 minutes default timeout
-        self.agents = {
-            'detection': DetectionAgent(),
-            'requirements': RequirementsAgent(),
-            'setup': SetupAgent(),
-            'db': DBAgent(),
-            'runner': RunnerAgent(),
-            'health': HealthAgent(),
-            'fixer': FixerAgent(),
-            'port_manager': PortManagerAgent()
-        }
-        self.workflow_state = {}
-        self.checkpoint_results = {}
-        self.timeout = timeout
-        self.start_time = None
+    def __init__(self):
+        self.service_orchestrator = AutonomousServiceOrchestrator()
+        self.detection_results = {}
+        self.port_manager = None
     
-    def run(self, repo_path: str, mode: str = "local") -> Dict[str, Any]:
-        """Dynamic workflow execution with intelligent agent selection."""
+    def set_port_manager(self, port_manager):
+        """Set the port manager for the orchestrator"""
+        self.port_manager = port_manager
+        self.service_orchestrator.port_manager = port_manager
+    
+    def orchestrate(self, repo_path: str, detection_results: Dict[str, Any]) -> Dict[str, Any]:
+        """Enhanced orchestration with autonomous service management"""
         print("🎯 Starting intelligent workflow orchestration...")
         
-        # Initialize workflow state
-        self.workflow_state = {
-            'repo_path': repo_path,
-            'mode': mode,
-            'current_phase': 'initialization',
-            'completed_phases': [],
-            'failed_phases': [],
-            'retry_count': 0,
-            'max_retries': 3
-        }
-        
-        # Start timeout tracking
-        self.start_time = time.time()
+        self.detection_results = detection_results
         
         try:
-            # Phase 1: Repository Analysis
-            self._execute_phase('repository_analysis', self._analyze_repository)
+            # Run autonomous service orchestration
+            orchestration_results = self.service_orchestrator.orchestrate_services(
+                repo_path, 
+                detection_results, 
+                self.port_manager
+            )
             
-            # Phase 2: Port Management (NEW)
-            self._execute_phase('port_management', self._manage_ports)
+            if orchestration_results['status'] == 'success':
+                print("✅ Service orchestration completed successfully!")
+                print(f"   🚀 Started {orchestration_results['services_started']} services")
+                print(f"   🌍 Environment: {orchestration_results['environment']}")
+                
+                # Print access URLs
+                if orchestration_results.get('access_urls'):
+                    print("\n🔗 Service Access URLs:")
+                    for service, url in orchestration_results['access_urls'].items():
+                        print(f"   {service}: {url}")
             
-            # Phase 3: Environment Assessment
-            self._execute_phase('environment_assessment', self._assess_environment)
-            
-            # Phase 4: Dependency Management
-            self._execute_phase('dependency_management', self._manage_dependencies)
-            
-            # Phase 5: Service Configuration
-            self._execute_phase('service_configuration', self._configure_services)
-            
-            # Phase 6: Service Startup
-            self._execute_phase('service_startup', self._start_services)
-            
-            # Phase 7: Health Validation
-            self._execute_phase('health_validation', self._validate_health)
-            
-            # Phase 8: Final Optimization
-            self._execute_phase('final_optimization', self._optimize_system)
-            
-            return self._generate_final_report()
+            return orchestration_results
             
         except Exception as e:
-            print(f"❌ Workflow failed: {e}")
-            return self._generate_error_report(e)
-    
-    def _execute_phase(self, phase_name: str, phase_function) -> bool:
-        """Execute a workflow phase with intelligent decision making."""
-        print(f"\n🔄 Phase: {phase_name.replace('_', ' ').title()}")
-        
-        # Check timeout
-        if self._is_timeout():
-            raise TimeoutError(f"Workflow timeout after {self.timeout} seconds")
-        
-        try:
-            result = phase_function()
-            self.checkpoint_results[phase_name] = result
-            self.workflow_state['completed_phases'].append(phase_name)
-            self.workflow_state['current_phase'] = phase_name
-            
-            print(f"✅ {phase_name.replace('_', ' ').title()} completed successfully")
-            return True
-            
-        except Exception as e:
-            print(f"❌ {phase_name.replace('_', ' ').title()} failed: {e}")
-            self.workflow_state['failed_phases'].append(phase_name)
-            
-            # Attempt recovery
-            if self._should_retry_phase(phase_name):
-                return self._retry_phase(phase_name, phase_function)
-            else:
-                return False
-    
-    def _analyze_repository(self) -> Dict[str, Any]:
-        """Phase 1: Intelligent repository analysis."""
-        print("🔍 Analyzing repository structure and services...")
-        
-        # Use DetectionAgent for initial analysis
-        detection_result = self.agents['detection'].analyze(self.workflow_state['repo_path'])
-        
-        # Dynamically decide if we need deeper analysis
-        if self._needs_deeper_analysis(detection_result):
-            print("🔬 Performing deep analysis...")
-            services_result = self.agents['detection'].detect_services(self.workflow_state['repo_path'])
-            detection_result.update(services_result)
-        
-        return detection_result
-    
-    def _manage_ports(self) -> Dict[str, Any]:
-        """Phase 2: Port management and allocation."""
-        print("🔌 Managing port allocation and availability...")
-        
-        # Get services from repository analysis
-        services = self.checkpoint_results['repository_analysis'].get('services', [])
-        
-        if not services:
-            print("ℹ️ No services detected, skipping port management")
-            return {'status': 'no_services', 'message': 'No services detected'}
-        
-        # Use PortManagerAgent for comprehensive port management
-        port_result = self.agents['port_manager'].get_port_configuration(services)
-        
-        # Check current port status
-        port_status = self.agents['port_manager'].check_service_ports(services)
-        
-        # Free occupied ports if needed
-        freed_ports = self.agents['port_manager'].free_occupied_ports(services)
-        
-        # Allocate ports for services
-        allocated_ports = self.agents['port_manager'].allocate_ports_for_services(services)
-        
-        # Validate port configuration
-        is_valid, validation_errors = self.agents['port_manager'].validate_port_configuration(allocated_ports)
-        
-        port_management_result = {
-            'port_config': port_result,
-            'port_status': port_status,
-            'freed_ports': freed_ports,
-            'allocated_ports': allocated_ports,
-            'is_valid': is_valid,
-            'validation_errors': validation_errors,
-            'services_count': len(services)
-        }
-        
-        print(f"✅ Port management completed for {len(services)} services")
-        return port_management_result
-    
-    def _assess_environment(self) -> Dict[str, Any]:
-        """Phase 3: Environment assessment and requirements analysis."""
-        print("📋 Assessing environment and requirements...")
-        
-        # Use RequirementsAgent for requirements analysis
-        requirements_result = self.agents['requirements'].ensure_requirements(self.checkpoint_results['repository_analysis'])
-        
-        # Dynamically decide if we need additional environment checks
-        if self._needs_environment_validation(requirements_result):
-            print("🔧 Validating environment compatibility...")
-            # Could add environment validation logic here
-        
-        return requirements_result
-    
-    def _manage_dependencies(self) -> Dict[str, Any]:
-        """Phase 4: Intelligent dependency management."""
-        print("📦 Managing dependencies...")
-        
-        # Use SetupAgent for dependency installation
-        setup_result = self.agents['setup'].install(self.checkpoint_results['environment_assessment'])
-        
-        # Dynamically decide if we need service-specific setup
-        if self._needs_service_setup(self.checkpoint_results['repository_analysis']):
-            print("⚙️ Setting up service-specific dependencies...")
-            service_setup_result = self.agents['setup'].setup_services(self.checkpoint_results['repository_analysis'])
-            setup_result.update(service_setup_result)
-        
-        # Check for dependency errors and apply fixes
-        if setup_result.get('errors'):
-            print("🔧 Applying dependency fixes...")
-            fix_result = self.agents['fixer'].fix_dependency_errors(
-                setup_result['errors'], 
-                self.workflow_state['repo_path']
-            )
-            setup_result['fixes_applied'] = fix_result
-            
-            # Retry setup after fixes
-            if fix_result.get('fixed_errors', 0) > 0:
-                print("🔄 Retrying dependency setup after fixes...")
-                setup_result = self.agents['setup'].install(self.checkpoint_results['environment_assessment'])
-        
-        return setup_result
-    
-    def _configure_services(self) -> Dict[str, Any]:
-        """Phase 5: Service configuration and database setup."""
-        print("🗄️ Configuring services and database...")
-        
-        # Use DBAgent if database services are detected
-        db_result = {}
-        if self._needs_database_setup(self.checkpoint_results['repository_analysis']):
-            print("🗄️ Setting up database...")
-            db_result = self.agents['db'].setup(self.checkpoint_results['repository_analysis'])
-        
-        # Dynamically decide if we need additional configuration
-        if self._needs_additional_configuration(self.checkpoint_results['repository_analysis']):
-            print("⚙️ Applying additional configurations...")
-            # Could add configuration logic here
-        
-        return db_result
-    
-    def _start_services(self) -> Dict[str, Any]:
-        """Phase 6: Intelligent service startup."""
-        print("🚀 Starting services with dynamic port allocation...")
-        
-        # Get port management results
-        port_management = self.checkpoint_results.get('port_management', {})
-        allocated_ports = port_management.get('allocated_ports', {})
-        
-        # Use RunnerAgent for service startup with allocated ports
-        runner_result = self.agents['runner'].start(
-            self.checkpoint_results['repository_analysis'], 
-            self.workflow_state['mode'],
-            allocated_ports
-        )
-        
-        # Check for startup errors and apply fixes
-        if runner_result.get('errors'):
-            print("🔧 Applying startup fixes...")
-            services = self.checkpoint_results['repository_analysis'].get('services', [])
-            fix_result = self.agents['fixer'].fix_service_startup_errors(
-                runner_result['errors'], 
-                self.workflow_state['repo_path'],
-                services
-            )
-            runner_result['fixes_applied'] = fix_result
-            
-            # Retry startup after fixes
-            if fix_result.get('fixed_errors', 0) > 0:
-                print("🔄 Retrying service startup after fixes...")
-                runner_result = self.agents['runner'].start(
-                    self.checkpoint_results['repository_analysis'], 
-                    self.workflow_state['mode'],
-                    allocated_ports
-                )
-        
-        # Dynamically decide if we need to retry with different approach
-        if self._needs_startup_retry(runner_result):
-            print("🔄 Retrying service startup with alternative approach...")
-            runner_result = self._retry_service_startup()
-        
-        return runner_result
-    
-    def _validate_health(self) -> Dict[str, Any]:
-        """Phase 7: Comprehensive health validation."""
-        print("🏥 Validating service health...")
-        
-        # Use HealthAgent for health checks
-        health_result = self.agents['health'].check(self.checkpoint_results['service_startup'])
-        
-        # Dynamically decide if we need service-specific health checks
-        if self._needs_service_health_check(self.checkpoint_results['repository_analysis']):
-            print("🔍 Performing service-specific health checks...")
-            service_health_result = self.agents['health'].check_services(self.checkpoint_results['repository_analysis'])
-            # Merge health results properly
-            if isinstance(service_health_result, dict):
-                health_result.update(service_health_result)
-            elif isinstance(service_health_result, list):
-                health_result['service_checks'] = service_health_result
-            else:
-                health_result['service_checks'] = [service_health_result]
-        
-        # Use FixerAgent if health issues are detected
-        if not health_result.get('ok', True):
-            print("🔧 Attempting to fix health issues...")
-            fix_result = self.agents['fixer'].fix(health_result.get('errors', []), self.checkpoint_results['repository_analysis'])
-            health_result['fixes_applied'] = fix_result
-        
-        return health_result
-    
-    def _optimize_system(self) -> Dict[str, Any]:
-        """Phase 8: System optimization and final validation."""
-        print("⚡ Optimizing system performance...")
-        
-        # Final health check
-        final_health = self.agents['health'].check_services(self.checkpoint_results['repository_analysis'])
-        
-        # Ensure final_health is a dictionary
-        if not isinstance(final_health, dict):
-            final_health = {'status': 'unknown', 'data': final_health}
-        
-        # Dynamically decide if optimization is needed
-        if self._needs_optimization(final_health):
-            print("🔧 Applying optimizations...")
-            # Could add optimization logic here
-        
-        return final_health
-    
-    def _is_timeout(self) -> bool:
-        """Check if the workflow has exceeded the timeout."""
-        if self.start_time is None:
-            return False
-        return time.time() - self.start_time > self.timeout
-    
-    def _needs_deeper_analysis(self, detection_result: Dict) -> bool:
-        """Decide if deeper analysis is needed."""
-        return not detection_result.get('services') or len(detection_result.get('services', [])) == 0
-    
-    def _needs_environment_validation(self, requirements_result: Dict) -> bool:
-        """Decide if environment validation is needed."""
-        return bool(requirements_result.get('errors') or requirements_result.get('warnings'))
-    
-    def _needs_service_setup(self, analysis_result: Dict) -> bool:
-        """Decide if service-specific setup is needed."""
-        return bool(analysis_result.get('services'))
-    
-    def _needs_database_setup(self, analysis_result: Dict) -> bool:
-        """Decide if database setup is needed."""
-        services = analysis_result.get('services', [])
-        return any(s.get('type') == 'docker' and s.get('role') == 'db' for s in services)
-    
-    def _needs_additional_configuration(self, analysis_result: Dict) -> bool:
-        """Decide if additional configuration is needed."""
-        return bool(analysis_result.get('files', {}).get('.env') or analysis_result.get('files', {}).get('docker-compose.yml'))
-    
-    def _needs_startup_retry(self, runner_result: Dict) -> bool:
-        """Decide if service startup retry is needed."""
-        return bool(runner_result.get('errors') or runner_result.get('status') == 'failed')
-    
-    def _needs_service_health_check(self, analysis_result: Dict) -> bool:
-        """Decide if service-specific health checks are needed."""
-        return bool(analysis_result.get('services'))
-    
-    def _needs_optimization(self, health_result: Dict) -> bool:
-        """Decide if system optimization is needed."""
-        return not health_result.get('ok', True)
-    
-    def _should_retry_phase(self, phase_name: str) -> bool:
-        """Decide if a phase should be retried."""
-        self.workflow_state['retry_count'] += 1
-        return self.workflow_state['retry_count'] <= self.workflow_state['max_retries']
-    
-    def _retry_phase(self, phase_name: str, phase_function) -> bool:
-        """Retry a failed phase with different approach."""
-        print(f"🔄 Retrying {phase_name.replace('_', ' ')}...")
-        time.sleep(2)  # Brief pause before retry
-        return self._execute_phase(phase_name, phase_function)
-    
-    def _retry_service_startup(self) -> Dict[str, Any]:
-        """Retry service startup with alternative approach."""
-        # Try different startup strategies
-        print("🔄 Trying alternative startup approach...")
-        port_management = self.checkpoint_results.get('port_management', {})
-        allocated_ports = port_management.get('allocated_ports', {})
-        return self.agents['runner'].start(
-            self.checkpoint_results['repository_analysis'], 
-            self.workflow_state['mode'],
-            allocated_ports
-        )
-    
-    def _generate_final_report(self) -> Dict[str, Any]:
-        """Generate comprehensive final report."""
-        return {
-            'status': 'success',
-            'workflow_state': self.workflow_state,
-            'checkpoint_results': self.checkpoint_results,
-            'summary': {
-                'total_phases': len(self.workflow_state['completed_phases']),
-                'failed_phases': len(self.workflow_state['failed_phases']),
-                'retry_count': self.workflow_state['retry_count'],
-                'final_health': self.checkpoint_results.get('final_optimization', {})
+            print(f"❌ Orchestration failed: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
             }
-        }
     
-    def _generate_error_report(self, error: Exception) -> Dict[str, Any]:
-        """Generate error report."""
-        return {
-            'status': 'failed',
-            'error': str(error),
-            'workflow_state': self.workflow_state,
-            'checkpoint_results': self.checkpoint_results,
-            'summary': {
-                'completed_phases': self.workflow_state['completed_phases'],
-                'failed_phases': self.workflow_state['failed_phases'],
-                'current_phase': self.workflow_state['current_phase']
-            }
-        }
+    def cleanup(self):
+        """Cleanup all resources"""
+        self.service_orchestrator.stop_all_services()
