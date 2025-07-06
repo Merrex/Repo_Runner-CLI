@@ -70,14 +70,14 @@ def run_sanity_test():
         # Test 2: Detection
         print("\n2. Testing detection...")
         detection_agent = DetectionAgent()
-        repo_analysis = detection_agent.analyze(test_repo_path)
-        services = detection_agent.detect_services(test_repo_path)
+        detection_result = detection_agent.detect_project_structure(test_repo_path)
+        services = detection_result['services']
         print(f"✅ Detection completed: {len(services.get('services', []))} services found")
         
         # Test 3: Requirements
         print("\n3. Testing requirements analysis...")
         requirements_agent = RequirementsAgent()
-        requirements_result = requirements_agent.ensure_requirements(repo_analysis)
+        requirements_result = requirements_agent.ensure_requirements(detection_result)
         print(f"✅ Requirements analyzed: {requirements_result.get('status')}")
         
         # Test 4: Port Management

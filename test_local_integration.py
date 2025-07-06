@@ -192,8 +192,9 @@ def test_agent_integration():
         
         print("\n🔍 Phase 1: Repository Detection")
         detection_agent = DetectionAgent()
+        detection_result = detection_agent.detect_project_structure(test_repo_path)
+        services_info = detection_result['services']
         repo_analysis = detection_agent.analyze(test_repo_path)
-        services_info = detection_agent.detect_services(test_repo_path)
         repo_analysis.update(services_info)
         print(f"✅ Detected services: {len(repo_analysis.get('services', []))}")
         

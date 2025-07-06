@@ -540,10 +540,11 @@ class Orchestrator:
             
             # Phase 1: Repository Analysis
             print("\n🔄 Phase: Repository Analysis")
-            detection_results = detection_agent.detect_project_structure(repo_path)
+            detection_result = detection_agent.detect_project_structure(repo_path)
+            services_result = detection_result['services']
             
-            if detection_results['status'] == 'error':
-                return {'status': 'error', 'error': detection_results['error']}
+            if detection_result['status'] == 'error':
+                return {'status': 'error', 'error': detection_result['error']}
             
             # Phase 2: Port Management
             print("\n🔄 Phase: Port Management")
@@ -551,7 +552,7 @@ class Orchestrator:
             
             # Phase 3: Environment Assessment
             print("\n🔄 Phase: Environment Assessment")
-            requirements_results = requirements_agent.assess_requirements(repo_path)
+            requirements_results = requirements_agent.ensure_requirements(detection_result)
             
             # Phase 4: Setup
             print("\n🔄 Phase: Setup")
@@ -559,7 +560,7 @@ class Orchestrator:
             
             # Phase 5: Autonomous Service Orchestration
             print("\n🔄 Phase: Service Orchestration")
-            orchestration_results = self.orchestrate(repo_path, detection_results)
+            orchestration_results = self.orchestrate(repo_path, detection_result)
             
             # Phase 6: Health Check
             print("\n🔄 Phase: Health Check")
@@ -568,7 +569,7 @@ class Orchestrator:
             # Generate final summary
             final_result = {
                 'status': 'success',
-                'detection': detection_results,
+                'detection': detection_result,
                 'port_management': port_results,
                 'requirements': requirements_results,
                 'setup': setup_results,

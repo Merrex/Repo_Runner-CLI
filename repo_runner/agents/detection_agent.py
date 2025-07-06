@@ -477,29 +477,6 @@ class DetectionAgent:
         
         return missing 
 
+    # Deprecated: Use detect_project_structure instead
     def detect_services(self, repo_path):
-        """Detect all runnable services (backend, frontend, db) in the repo."""
-        services = []
-        files = {}
-        for root, dirs, filenames in os.walk(repo_path):
-            for filename in filenames:
-                rel_path = os.path.relpath(os.path.join(root, filename), repo_path)
-                files[rel_path] = True
-        # Detect backend
-        if any(f.endswith('.py') for f in files):
-            backend_path = None
-            for d in ['backend', 'api', 'server']:
-                if os.path.isdir(os.path.join(repo_path, d)):
-                    backend_path = os.path.join(repo_path, d)
-                    break
-            if not backend_path:
-                backend_path = repo_path
-            services.append({'type': 'python', 'role': 'backend', 'path': backend_path})
-        # Detect frontend
-        for d in ['frontend', 'client', 'web', 'ui']:
-            if os.path.isdir(os.path.join(repo_path, d)) and os.path.exists(os.path.join(repo_path, d, 'package.json')):
-                services.append({'type': 'node', 'role': 'frontend', 'path': os.path.join(repo_path, d)})
-        # Detect database (docker-compose)
-        if 'docker-compose.yml' in files:
-            services.append({'type': 'docker', 'role': 'db', 'path': repo_path})
-        return {'services': services, 'files': files, 'repo_path': repo_path} 
+        raise NotImplementedError('detect_services is deprecated. Use detect_project_structure instead.') 
