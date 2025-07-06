@@ -173,10 +173,10 @@ def install():
 
 @cli.command()
 def models():
-    """List available models and setup token configuration."""
-    from .llm.llm_utils import list_available_models, setup_huggingface_token
+    """List available models and setup universal authentication."""
+    from .llm.llm_utils import list_available_models, setup_model_authentication
     
-    print("🤖 Repo Runner Model Configuration")
+    print("🤖 Universal Model Configuration")
     print("=" * 50)
     
     # List available models
@@ -184,13 +184,13 @@ def models():
     
     print("\n" + "=" * 50)
     
-    # Setup token configuration
-    setup_huggingface_token()
+    # Setup universal authentication
+    setup_model_authentication()
     
     print("\n💡 Quick Start:")
     print("1. Run: repo_runner install")
     print("2. Run: repo_runner run /path/to/repo")
-    print("3. Models will be downloaded automatically!")
+    print("3. Models will be configured automatically!")
 
 
 @cli.command()

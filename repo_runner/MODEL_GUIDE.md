@@ -1,14 +1,16 @@
-# 🤖 Model Configuration Guide
+# 🤖 Universal Model Configuration Guide
 
 ## Overview
 
-This guide explains how to configure LLM models for the repo_runner tool, including free models and advanced models that require authentication.
+This guide explains how to configure LLM models for the repo_runner tool, supporting **public**, **gated**, and **paid** models with proper authentication and fallback mechanisms.
 
-## 🆓 Free Models (Default)
+## 🌐 Universal Model Support
 
-The tool now uses **free, open-source models** that don't require any authentication:
+The tool now supports **three types of models** with automatic authentication and fallback:
 
-### Default Model Configuration
+### 1. 🆓 Public Models (Default)
+
+**Free, open-source models** that don't require any authentication:
 
 | Agent | Model | Parameters | Use Case |
 |-------|-------|------------|----------|
@@ -20,14 +22,41 @@ The tool now uses **free, open-source models** that don't require any authentica
 | HealthAgent | microsoft/DialoGPT-small | 117M | Health monitoring |
 | RunnerAgent | microsoft/DialoGPT-medium | 345M | Service startup |
 
-### ✅ Advantages of Free Models
+### 2. 🔒 Gated Models (Free Token)
 
-- **No authentication required**
-- **No API keys needed**
-- **Works offline after download**
-- **Fast inference**
-- **Low memory usage**
-- **Completely free**
+**Advanced models** that require a free Hugging Face token:
+
+| Agent | Model | Parameters | Authentication |
+|-------|-------|------------|----------------|
+| DetectionAgent | mistralai/Mistral-7B-Instruct-v0.2 | 7B | HF Token |
+| RequirementsAgent | mistralai/Mistral-7B-Instruct-v0.2 | 7B | HF Token |
+| SetupAgent | mistralai/Mistral-7B-Instruct-v0.2 | 7B | HF Token |
+| FixerAgent | WizardLM/WizardCoder-1B-V1.0 | 1B | HF Token |
+| DBAgent | mistralai/Mistral-7B-Instruct-v0.2 | 7B | HF Token |
+| HealthAgent | HuggingFaceH4/zephyr-1.3b | 1.3B | HF Token |
+| RunnerAgent | mistralai/Mistral-7B-Instruct-v0.2 | 7B | HF Token |
+
+### 3. 💰 Paid Models (API Key)
+
+**Premium models** that require paid API keys:
+
+| Agent | Model | Provider | Authentication |
+|-------|-------|----------|----------------|
+| DetectionAgent | gpt-3.5-turbo | OpenAI | API Key |
+| RequirementsAgent | gpt-4 | OpenAI | API Key |
+| SetupAgent | gpt-4 | OpenAI | API Key |
+| FixerAgent | gpt-4 | OpenAI | API Key |
+| DBAgent | gpt-4 | OpenAI | API Key |
+| HealthAgent | gpt-3.5-turbo | OpenAI | API Key |
+| RunnerAgent | gpt-4 | OpenAI | API Key |
+
+### ✅ Universal Benefits
+
+- **Automatic fallback** to public models if authentication fails
+- **Multiple provider support** (OpenAI, Anthropic, Google)
+- **Environment-based configuration** for easy switching
+- **Graceful error handling** with helpful error messages
+- **Cost optimization** with smart model selection
 
 ## 🔑 Advanced Models (Optional)
 
