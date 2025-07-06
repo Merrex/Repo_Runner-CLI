@@ -26,13 +26,20 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [x] **Robust LLM Handling**: Better sequence length handling and fallback responses
 - [x] **Port Management**: PortManagerAgent handles port allocation, conflict resolution, and process management
 
-### Intelligent Orchestrator Features (NEW)
+### Intelligent Orchestrator Features
 - [x] **Dynamic Agent Selection**: Orchestrator decides which agents to use based on real-time conditions
 - [x] **Checkpoint-Based Workflow**: 7-phase workflow with intelligent decision points
 - [x] **Adaptive Execution**: Workflow adapts based on agent results and conditions
 - [x] **Retry Logic**: Automatic retry with different approaches when phases fail
 - [x] **Real-Time Decision Making**: Each phase can trigger additional agents as needed
 - [x] **Comprehensive Reporting**: Detailed reports with workflow state and checkpoint results
+
+### Optimized LLM Configuration (NEW)
+- [x] **Agent-Specific Models**: Each agent uses optimized model for its task
+- [x] **Token Limit Optimization**: Prevents hanging and incomplete outputs
+- [x] **Memory Management**: Efficient GPU memory usage with device mapping
+- [x] **Fallback Strategy**: Graceful degradation to smaller models
+- [x] **Performance Tuning**: Optimized generation parameters for each model
 
 ### Port Management Features
 - [x] **Port Availability Checking**: Check if ports are free before starting services
@@ -68,6 +75,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Dependency Conflict Resolution**: Handle version conflicts and suggest solutions
 - [ ] **Advanced Port Management**: Handle custom port configurations in config files
 - [ ] **Orchestrator Learning**: Add machine learning to improve decision-making over time
+- [ ] **Model Performance Monitoring**: Track and optimize LLM performance per agent
 
 ### Phase 2: Advanced Startup & Configuration (Week 2)
 - [ ] **Service Configuration**: Auto-generate missing configuration files
@@ -77,6 +85,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Development vs Production**: Detect and configure for different environments
 - [ ] **Port Range Management**: Configure custom port ranges for different environments
 - [ ] **Dynamic Workflow Adaptation**: Orchestrator learns from successful patterns
+- [ ] **LLM Response Validation**: Validate and improve LLM outputs
 
 ### Phase 3: Intelligent Troubleshooting (Week 3)
 - [ ] **Error Pattern Recognition**: Use LLM to analyze error logs and suggest fixes
@@ -86,6 +95,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Log Analysis**: Parse and analyze service logs for issues
 - [ ] **Port Conflict Resolution**: Automatically resolve port conflicts with intelligent port allocation
 - [ ] **Predictive Orchestration**: Orchestrator predicts issues before they occur
+- [ ] **Model Fine-tuning**: Fine-tune models for specific agent tasks
 
 ### Phase 4: Cloud Deployment Preparation (Week 4)
 - [ ] **Dockerfile Generation**: Auto-generate Dockerfiles for services
@@ -95,6 +105,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Deployment Scripts**: Generate deployment scripts and documentation
 - [ ] **Port Mapping for Containers**: Handle port mapping for Docker containers
 - [ ] **Cloud-Aware Orchestration**: Orchestrator adapts workflow for cloud deployment
+- [ ] **Model Deployment**: Optimize models for cloud deployment
 
 ### Phase 5: Advanced Intelligence (Week 5)
 - [ ] **Code Analysis**: Analyze code quality and suggest improvements
@@ -104,6 +115,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Documentation Generation**: Auto-generate README and setup instructions
 - [ ] **Port Security**: Validate port security and suggest secure configurations
 - [ ] **AI-Powered Orchestration**: Orchestrator uses advanced AI for complex decisions
+- [ ] **Model Ensemble**: Use multiple models for better accuracy
 
 ### Phase 6: User Experience & Integration (Week 6)
 - [ ] **Interactive Mode**: Interactive prompts for user decisions
@@ -113,16 +125,19 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **CI/CD Integration**: Integrate with GitHub Actions, GitLab CI, etc.
 - [ ] **Port Monitoring Dashboard**: Real-time port status monitoring
 - [ ] **Orchestrator Dashboard**: Visual workflow monitoring and control
+- [ ] **Model Performance Dashboard**: Monitor and optimize LLM performance
 
 ---
 
 ## 🔧 **TECHNICAL IMPROVEMENTS** (Ongoing)
 
 ### LLM Enhancements
-- [ ] **Model Selection**: Choose best model for each agent type
+- [x] **Model Selection**: Choose best model for each agent type
 - [ ] **Prompt Optimization**: Optimize prompts for better accuracy
 - [ ] **Context Management**: Better handling of large codebases
 - [ ] **Response Validation**: Validate LLM responses before using them
+- [ ] **Model Caching**: Implement intelligent model caching
+- [ ] **Memory Optimization**: Optimize memory usage for different models
 
 ### System Architecture
 - [ ] **Async Processing**: Make agents work asynchronously
@@ -147,6 +162,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - [ ] **Startup Time**: <30 seconds for typical repos
 - [ ] **Port Conflict Resolution**: 95%+ of port conflicts automatically resolved
 - [ ] **Orchestrator Efficiency**: 90%+ of workflow decisions are optimal
+- [ ] **LLM Response Quality**: 95%+ of LLM responses are accurate and complete
 
 ### User Experience
 - [ ] **Clear Feedback**: Users always know what's happening
@@ -165,6 +181,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 5. **Add Service Dependencies**: Handle startup order properly
 6. **Test Port Management**: Verify port allocation and conflict resolution works
 7. **Test Orchestrator Intelligence**: Verify dynamic decision-making works correctly
+8. **Test LLM Performance**: Verify optimized models work without hanging
 
 ---
 
@@ -177,6 +194,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - Services need to be started in correct directories
 - Port conflicts need to be handled
 - Services need proper port configuration
+- LLM responses can be incomplete or hang
 
 ### Lessons Learned
 - Rule-based detection is more reliable than LLM-only
@@ -185,6 +203,7 @@ Build a robust, intelligent, modular CLI agent that can analyze any repository, 
 - Clear progress feedback helps users understand what's happening
 - Port management is critical for multi-service applications
 - Dynamic decision-making significantly improves workflow efficiency
+- Optimized model selection prevents hanging and improves quality
 
 ---
 
@@ -200,6 +219,7 @@ A system that can:
 6. **Prepare for deployment** to any cloud platform
 7. **Provide clear feedback** and actionable next steps
 8. **Adapt workflow dynamically** based on real-time conditions
+9. **Use optimized LLMs** for each specific task without hanging
 
 ### Success Criteria
 - Works with 95%+ of typical web applications
@@ -209,6 +229,7 @@ A system that can:
 - Scales to large, complex repositories
 - Automatically resolves port conflicts
 - Makes intelligent decisions at each workflow checkpoint
+- Uses appropriate LLMs for each task without performance issues
 
 ---
 

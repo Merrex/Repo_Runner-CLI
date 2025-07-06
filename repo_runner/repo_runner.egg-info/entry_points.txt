@@ -1,0 +1,2 @@
+[console_scripts]
+repo_runner = repo_runner.cli:main
