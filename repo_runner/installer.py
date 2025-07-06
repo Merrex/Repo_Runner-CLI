@@ -126,16 +126,27 @@ class SystemInstaller:
             "colorama>=0.4.4",
             "rich>=12.0.0",
             "jinja2>=3.0.0",
-            "python-jose[cryptography]>=3.3.0"
+            "python-jose[cryptography]>=3.3.0",
+            "openai>=1.0.0",
+            "anthropic>=0.7.0",
+            "google-generativeai>=0.3.0"
         ]
         
         try:
-            # Install all packages
-            subprocess.run([sys.executable, "-m", "pip", "install"] + required_packages, check=True)
+            # Install all packages with verbose output
+            print("Installing packages...")
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install"] + required_packages, 
+                check=True,
+                capture_output=True,
+                text=True
+            )
             print("✅ Python packages installed successfully!")
+            print(f"Installation output: {result.stdout}")
             return True
         except subprocess.CalledProcessError as e:
             print(f"❌ Failed to install Python packages: {e}")
+            print(f"Error output: {e.stderr}")
             return False
     
     def verify_installation(self):
@@ -173,6 +184,35 @@ class SystemInstaller:
         
         if missing_packages:
             print(f"\n⚠️  Missing packages: {missing_packages}")
+            
+            # Try to install missing Python packages
+            missing_python_packages = [pkg for pkg in missing_packages if pkg in required_packages]
+            if missing_python_packages:
+                print(f"🔄 Retrying installation of missing packages: {missing_python_packages}")
+                try:
+                    subprocess.run(
+                        [sys.executable, "-m", "pip", "install"] + missing_python_packages, 
+                        check=True
+                    )
+                    print("✅ Missing packages installed successfully!")
+                    
+                    # Verify again
+                    print("🔍 Re-verifying installation...")
+                    all_installed = True
+                    for package in required_packages:
+                        try:
+                            __import__(package)
+                            print(f"  ✅ {package}")
+                        except ImportError:
+                            print(f"  ❌ {package}")
+                            all_installed = False
+                    
+                    if all_installed:
+                        print("✅ All dependencies verified successfully!")
+                        return True
+                except subprocess.CalledProcessError as e:
+                    print(f"❌ Failed to install missing packages: {e}")
+            
             return False
         
         print("✅ All dependencies verified successfully!")
