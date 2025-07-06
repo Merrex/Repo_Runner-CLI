@@ -208,30 +208,20 @@ class RunnerAgent:
             
             # Rule-based Node.js command selection
             node_cmd = None
-            package_json_path = os.path.join(repo_path, 'package.json')
-            
-            if os.path.exists(package_json_path):
-                # Check for start script
-                try:
-                    with open(package_json_path, 'r') as f:
-                        package_data = json.load(f)
-                        scripts = package_data.get('scripts', {})
-                        if 'start' in scripts:
-                            node_cmd = f'npm start -- --port {frontend_port}'
-                        elif 'dev' in scripts:
-                            node_cmd = f'npm run dev -- --port {frontend_port}'
-                        else:
-                            node_cmd = f'npm start -- --port {frontend_port}'
-                except:
+            if os.path.exists(os.path.join(repo_path, 'package.json')):
+                # Check package.json for start script
+                with open(os.path.join(repo_path, 'package.json'), 'r') as f:
+                    package_data = json.load(f)
+                
+                scripts = package_data.get('scripts', {})
+                if 'start' in scripts:
                     node_cmd = f'npm start -- --port {frontend_port}'
-            else:
-                # Look for common entry points
-                if os.path.exists(os.path.join(repo_path, 'app.js')):
-                    node_cmd = f'node app.js --port {frontend_port}'
-                elif os.path.exists(os.path.join(repo_path, 'server.js')):
-                    node_cmd = f'node server.js --port {frontend_port}'
+                elif 'dev' in scripts:
+                    node_cmd = f'npm run dev -- --port {frontend_port}'
                 else:
                     node_cmd = f'npm start -- --port {frontend_port}'
+            else:
+                node_cmd = f'npm start -- --port {frontend_port}'
             
             print(f"🚀 Starting Node.js application with: {node_cmd}")
             
@@ -245,16 +235,21 @@ class RunnerAgent:
             )
             
             # Wait a bit for the process to start
-            time.sleep(2)
+            time.sleep(3)  # Give Node.js more time to start
             
             # Check if process is still running
             if process.poll() is None:
                 print("✅ Node.js application started successfully!")
+                
+                # Generate preview URLs
+                preview_urls = self._generate_preview_urls(frontend_port, repo_path)
+                
                 return {
                     'started_services': ['node'],
                     'processes': [{'type': 'node', 'pid': process.pid, 'command': node_cmd}],
                     'ports': [frontend_port],
                     'urls': [f'http://localhost:{frontend_port}'],
+                    'preview_urls': preview_urls,
                     'node_command': node_cmd,
                     'status': 'running'
                 }
@@ -268,6 +263,66 @@ class RunnerAgent:
             
         except Exception as e:
             return {'errors': [f"Node.js start failed: {e}"]}
+    
+    def _generate_preview_urls(self, port, repo_path):
+        """Generate preview URLs for the application."""
+        preview_info = {
+            'main_url': f'http://localhost:{port}',
+            'alternative_urls': [],
+            'api_urls': [],
+            'preview_notes': []
+        }
+        
+        # Check for common frontend frameworks and add specific URLs
+        if os.path.exists(os.path.join(repo_path, 'package.json')):
+            try:
+                with open(os.path.join(repo_path, 'package.json'), 'r') as f:
+                    package_data = json.load(f)
+                
+                dependencies = package_data.get('dependencies', {})
+                
+                # React specific URLs
+                if 'react' in dependencies or 'react-scripts' in dependencies:
+                    preview_info['alternative_urls'].extend([
+                        f'http://localhost:{port}/',
+                        f'http://localhost:{port}/app',
+                        f'http://localhost:{port}/home'
+                    ])
+                    preview_info['preview_notes'].append('React application detected')
+                
+                # Vue specific URLs
+                elif 'vue' in dependencies:
+                    preview_info['alternative_urls'].extend([
+                        f'http://localhost:{port}/',
+                        f'http://localhost:{port}/#/'
+                    ])
+                    preview_info['preview_notes'].append('Vue application detected')
+                
+                # Angular specific URLs
+                elif 'angular' in dependencies or '@angular' in dependencies:
+                    preview_info['alternative_urls'].extend([
+                        f'http://localhost:{port}/',
+                        f'http://localhost:{port}/app'
+                    ])
+                    preview_info['preview_notes'].append('Angular application detected')
+                
+                # Generic frontend URLs
+                else:
+                    preview_info['alternative_urls'].extend([
+                        f'http://localhost:{port}/',
+                        f'http://localhost:{port}/index.html'
+                    ])
+                    preview_info['preview_notes'].append('Generic frontend application')
+                    
+            except Exception as e:
+                preview_info['preview_notes'].append(f'Could not analyze package.json: {e}')
+        
+        # Check for API endpoints
+        api_paths = ['/api', '/api/v1', '/api/v2', '/rest', '/graphql']
+        for api_path in api_paths:
+            preview_info['api_urls'].append(f'http://localhost:{port}{api_path}')
+        
+        return preview_info
     
     def _start_generic_app(self, structure, mode, repo_path):
         """Start generic application."""

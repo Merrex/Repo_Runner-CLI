@@ -192,16 +192,45 @@ class HealthAgent:
         """Check if URLs are responding."""
         url_results = {
             'url_checks': {},
-            'url_errors': []
+            'url_errors': [],
+            'preview_info': {}
         }
         
         for url in urls:
             try:
                 response = requests.get(url, timeout=5)
-                url_results['url_checks'][url] = {
+                
+                # Enhanced preview information
+                preview_info = {
+                    'url': url,
                     'status_code': response.status_code,
-                    'healthy': response.status_code < 400,
-                    'response_time': response.elapsed.total_seconds()
+                    'response_time': response.elapsed.total_seconds(),
+                    'content_type': response.headers.get('content-type', ''),
+                    'accessible': response.status_code < 400
+                }
+                
+                # Check if it's a frontend application
+                if 'text/html' in response.headers.get('content-type', ''):
+                    preview_info['type'] = 'frontend'
+                    preview_info['preview_note'] = 'Frontend application accessible'
+                elif 'application/json' in response.headers.get('content-type', ''):
+                    preview_info['type'] = 'api'
+                    preview_info['preview_note'] = 'API endpoint accessible'
+                else:
+                    preview_info['type'] = 'service'
+                    preview_info['preview_note'] = 'Service running'
+                
+                url_results['url_checks'][url] = preview_info
+                
+                if response.status_code >= 400:
+                    url_results['url_errors'].append(f"{url}: HTTP {response.status_code}")
+                    
+            except requests.exceptions.RequestException as e:
+                url_results['url_errors'].append(f"{url}: {e}")
+                url_results['url_checks'][url] = {
+                    'url': url,
+                    'accessible': False,
+                    'error': str(e)
                 }
             except Exception as e:
                 url_results['url_checks'][url] = {
