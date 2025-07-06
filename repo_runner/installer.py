@@ -109,6 +109,35 @@ class SystemInstaller:
         
         return True
     
+    def install_python_packages(self):
+        """Install missing Python packages."""
+        print("📦 Installing Python packages...")
+        
+        # List of required packages from pyproject.toml
+        required_packages = [
+            "click>=8.0.0",
+            "requests>=2.25.0", 
+            "PyYAML>=6.0",
+            "python-dotenv>=0.19.0",
+            "transformers>=4.30.0",
+            "torch>=2.0.0",
+            "accelerate>=0.20.0",
+            "psutil>=5.8.0",
+            "colorama>=0.4.4",
+            "rich>=12.0.0",
+            "jinja2>=3.0.0",
+            "python-jose[cryptography]>=3.3.0"
+        ]
+        
+        try:
+            # Install all packages
+            subprocess.run([sys.executable, "-m", "pip", "install"] + required_packages, check=True)
+            print("✅ Python packages installed successfully!")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to install Python packages: {e}")
+            return False
+    
     def verify_installation(self):
         """Verify that all required dependencies are installed."""
         print("🔍 Verifying installation...")
@@ -159,6 +188,11 @@ def auto_install():
     # Install system dependencies
     if not installer.install_system_dependencies():
         print("❌ Failed to install system dependencies")
+        return False
+    
+    # Install Python packages
+    if not installer.install_python_packages():
+        print("❌ Failed to install Python packages")
         return False
     
     # Verify installation
