@@ -162,5 +162,14 @@ def health(ctx, path):
         sys.exit(1)
 
 
+@cli.command()
+def install():
+    """Auto-install system dependencies and verify installation."""
+    from .installer import auto_install
+    success = auto_install()
+    if not success:
+        sys.exit(1)
+
+
 if __name__ == '__main__':
     cli()

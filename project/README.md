@@ -4,25 +4,47 @@ A **modular, agentic AI system** that automatically detects project structure, i
 
 ---
 
-## 🚀 Installation (pipx Recommended)
+## 🚀 Installation (Auto-Installation)
+
+### **Option 1: One-Command Installation (Recommended)**
 
 ```bash
-# Install pipx if not already installed
-sudo apt install pipx
-pipx ensurepath
+# Install repo_runner with auto-dependency management
+pip install git+https://github.com/Merrex/Repo_Runner-CLI.git
 
-# Install repo_runner from your project directory
-cd /path/to/repo_runner/project
-pipx install .
-
-# Inject required dependencies for LLM functionality
-pipx inject repo_runner transformers torch accelerate requests
+# Auto-install system dependencies
+repo_runner install
 
 # Verify installation
 repo_runner --help
 ```
 
-> **Note:** If you update the code, run `pipx install . --force` to reinstall, and re-inject dependencies if needed.
+### **Option 2: Development Installation**
+
+```bash
+# Clone and install for development
+git clone https://github.com/Merrex/Repo_Runner-CLI.git
+cd Repo_Runner-CLI/project
+pip install -e .
+
+# Auto-install system dependencies
+repo_runner install
+```
+
+### **Option 3: pipx Installation**
+
+```bash
+# Install with pipx (isolated environment)
+pipx install git+https://github.com/Merrex/Repo_Runner-CLI.git
+
+# Auto-install system dependencies
+repo_runner install
+```
+
+> **Note:** The `repo_runner install` command automatically handles:
+> - System dependencies (git, node, npm, etc.)
+> - Python package dependencies
+> - Platform-specific requirements (Linux/macOS/Windows)
 
 ---
 
@@ -194,8 +216,11 @@ health_check:
 
 1. **Missing Dependencies**
    ```bash
-   # If you get "ModuleNotFoundError: No module named 'transformers'"
-   pipx inject repo_runner transformers torch accelerate requests
+   # Auto-install all dependencies
+   repo_runner install
+   
+   # Or manually install if needed
+   pip install transformers torch accelerate requests psutil colorama rich jinja2 python-jose[cryptography]
    ```
 
 2. **Permission Issues**
