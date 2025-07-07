@@ -87,12 +87,10 @@ class EnvironmentAwarePortManager:
             
             # Create tunnel with configuration
             tunnel_config = {}
-            if ngrok_config.get('region'):
-                tunnel_config['region'] = ngrok_config['region']
             if ngrok_config.get('domain'):
                 tunnel_config['domain'] = ngrok_config['domain']
             
-            # Create tunnel
+            # Create tunnel (removed region parameter to avoid ngrok v2/v3 compatibility issues)
             tunnel = ngrok.connect(port, **tunnel_config)
             public_url = tunnel.public_url
             

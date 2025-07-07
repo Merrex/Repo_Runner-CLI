@@ -564,7 +564,7 @@ class Orchestrator:
             
             # Phase 6: Health Check
             print("\n🔄 Phase: Health Check")
-            health_results = health_agent.check_health(repo_path)
+            health_results = health_agent.check(repo_path)
             
             # Generate final summary
             final_result = {
