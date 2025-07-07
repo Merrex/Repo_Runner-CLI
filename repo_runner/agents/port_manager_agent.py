@@ -105,20 +105,24 @@ class EnvironmentAwarePortManager:
             ngrok_process = subprocess.Popen(['ngrok', 'start', '--all'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.tunnels[port] = ngrok_process  # Store process, not tunnel object
             
-            # Wait for ngrok to be ready and fetch public URL
-            import time, requests
-            time.sleep(3)
-            try:
-                tunnels_info = requests.get('http://localhost:4040/api/tunnels').json()['tunnels']
-                public_url = None
-                for tunnel in tunnels_info:
-                    if str(port) in tunnel['config']['addr']:
-                        public_url = tunnel['public_url']
-                        break
-                if not public_url:
-                    public_url = f"http://localhost:{port}"
-            except Exception as e:
-                print(f"❌ Could not fetch ngrok public URL: {e}")
+            # Wait for ngrok API to be ready (retry loop)
+            public_url = None
+            api_ready = False
+            for _ in range(15):  # Wait up to ~15 seconds
+                try:
+                    tunnels_info = requests.get('http://localhost:4040/api/tunnels').json()['tunnels']
+                    api_ready = True
+                    for tunnel in tunnels_info:
+                        if str(port) in tunnel['config']['addr']:
+                            public_url = tunnel['public_url']
+                            break
+                    break
+                except Exception:
+                    time.sleep(1)
+            if not api_ready:
+                print(f"❌ Ngrok API not ready after waiting, using local URL for port {port}")
+                public_url = f"http://localhost:{port}"
+            elif not public_url:
                 public_url = f"http://localhost:{port}"
             
             self.port_mappings[port] = {
@@ -258,27 +262,19 @@ spec:
         return preferred_port
     
     def cleanup_tunnels(self):
-        """Cleanup all tunnels"""
-        try:
-            from pyngrok import ngrok
-            
-            # Kill all existing tunnels to prevent hitting limits
-            try:
-                ngrok.kill()
-                print("🧹 Killed all existing ngrok tunnels")
-            except Exception as e:
-                print(f"⚠️ Failed to kill ngrok tunnels: {e}")
-                
-        except ImportError:
-            pass
-            
-        # Close our tracked tunnels
+        """Cleanup all tunnels (terminate ngrok processes)"""
         for port, tunnel in self.tunnels.items():
             try:
-                tunnel.close()
-                print(f"🔌 Closed tunnel for port {port}")
+                # If tunnel is a Popen process, terminate it
+                if hasattr(tunnel, 'terminate'):
+                    tunnel.terminate()
+                    tunnel.wait(timeout=5)
+                    print(f"🔌 Terminated ngrok process for port {port}")
+                else:
+                    print(f"⚠️ Tunnel object for port {port} is not a process, skipping terminate.")
             except Exception as e:
-                print(f"❌ Failed to close tunnel for port {port}: {e}")
+                print(f"❌ Failed to terminate tunnel for port {port}: {e}")
+        self.tunnels.clear()
     
     def get_port_mappings(self) -> Dict[int, Dict[str, str]]:
         """Get all port mappings"""
