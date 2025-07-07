@@ -46,6 +46,10 @@ class AutonomousServiceOrchestrator:
         
         self.port_manager = port_manager
         
+        # Cleanup existing tunnels to prevent hitting limits
+        if self.port_manager:
+            self.port_manager.cleanup_tunnels()
+        
         try:
             # 1. Analyze service dependencies
             self.analyze_service_dependencies(detection_results)
@@ -277,6 +281,11 @@ class AutonomousServiceOrchestrator:
     def start_node_service(self, service_name: str, service_path: str, framework: str, role: str) -> Dict[str, Any]:
         """Start a Node.js service"""
         try:
+            # Check if package.json exists
+            package_json_path = os.path.join(service_path, 'package.json')
+            if not os.path.exists(package_json_path):
+                return {'status': 'error', 'error': f'No package.json found in {service_path}'}
+            
             # Install dependencies
             print(f"📦 Installing dependencies for {service_name}...")
             subprocess.run(['npm', 'install'], cwd=service_path, check=True)
@@ -318,6 +327,11 @@ class AutonomousServiceOrchestrator:
     def start_python_service(self, service_name: str, service_path: str, framework: str, role: str) -> Dict[str, Any]:
         """Start a Python service"""
         try:
+            # Check if this is actually a Python service directory
+            python_files = [f for f in os.listdir(service_path) if f.endswith('.py')]
+            if not python_files:
+                return {'status': 'error', 'error': f'No Python files found in {service_path}'}
+            
             # Install dependencies
             print(f"📦 Installing dependencies for {service_name}...")
             
@@ -564,7 +578,7 @@ class Orchestrator:
             
             # Phase 6: Health Check
             print("\n🔄 Phase: Health Check")
-            health_results = health_agent.check(repo_path)
+            health_results = health_agent.check(orchestration_results)
             
             # Generate final summary
             final_result = {
@@ -628,3 +642,7 @@ class Orchestrator:
     def cleanup(self):
         """Cleanup all resources"""
         self.service_orchestrator.stop_all_services()
+        
+        # Cleanup port manager tunnels
+        if self.port_manager:
+            self.port_manager.cleanup_tunnels()

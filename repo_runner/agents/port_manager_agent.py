@@ -70,6 +70,13 @@ class EnvironmentAwarePortManager:
                 subprocess.run([sys.executable, "-m", "pip", "install", "pyngrok"], check=True)
                 from pyngrok import ngrok
             
+            # Cleanup existing tunnels to prevent hitting limits
+            try:
+                ngrok.kill()
+                print("🧹 Cleaned up existing ngrok tunnels")
+            except Exception as e:
+                print(f"⚠️ Failed to cleanup ngrok tunnels: {e}")
+            
             # Get ngrok configuration
             ngrok_config = config_manager.get_integration_config('ngrok')
             auth_token = ngrok_config.get('auth_token')
@@ -235,6 +242,20 @@ spec:
     
     def cleanup_tunnels(self):
         """Cleanup all tunnels"""
+        try:
+            from pyngrok import ngrok
+            
+            # Kill all existing tunnels to prevent hitting limits
+            try:
+                ngrok.kill()
+                print("🧹 Killed all existing ngrok tunnels")
+            except Exception as e:
+                print(f"⚠️ Failed to kill ngrok tunnels: {e}")
+                
+        except ImportError:
+            pass
+            
+        # Close our tracked tunnels
         for port, tunnel in self.tunnels.items():
             try:
                 tunnel.close()

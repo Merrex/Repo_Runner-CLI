@@ -8,6 +8,10 @@ from ..llm.llm_utils import generate_code_with_llm
 class HealthAgent:
     def check(self, run_status):
         """Check the health of the running service(s) using LLM."""
+        # Handle case where run_status is a string (repo path)
+        if isinstance(run_status, str):
+            return {"ok": False, "errors": [f"No running services to check for path: {run_status}"]}
+        
         if not run_status or run_status.get('status') == 'not implemented':
             return {"ok": False, "errors": ["No running services to check"]}
         
