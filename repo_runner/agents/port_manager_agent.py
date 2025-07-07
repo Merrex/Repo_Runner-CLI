@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 import requests
 import json
 from pathlib import Path
+from ..config_manager import config_manager
 
 class EnvironmentAwarePortManager:
     """Enhanced port manager that's aware of different environments (Colab, local, Docker, K8s)"""
@@ -59,7 +60,7 @@ class EnvironmentAwarePortManager:
             return self.setup_local_access(port, service_name)
     
     def setup_colab_access(self, port: int, service_name: str = None) -> Dict[str, str]:
-        """Setup ngrok tunnel for Colab environment"""
+        """Setup ngrok tunnel for Colab environment with proper authentication"""
         try:
             # Install pyngrok if not available
             try:
@@ -69,8 +70,30 @@ class EnvironmentAwarePortManager:
                 subprocess.run([sys.executable, "-m", "pip", "install", "pyngrok"], check=True)
                 from pyngrok import ngrok
             
+            # Get ngrok configuration
+            ngrok_config = config_manager.get_integration_config('ngrok')
+            auth_token = ngrok_config.get('auth_token')
+            
+            # Set ngrok auth token if available
+            if auth_token:
+                try:
+                    ngrok.set_auth_token(auth_token)
+                    print("✅ Ngrok authentication configured")
+                except Exception as e:
+                    print(f"⚠️ Ngrok auth token setup failed: {e}")
+            else:
+                print("⚠️ No NGROK_AUTH_TOKEN found - using free tier (limited)")
+                print("💡 Get free token at: https://dashboard.ngrok.com/get-started/your-authtoken")
+            
+            # Create tunnel with configuration
+            tunnel_config = {}
+            if ngrok_config.get('region'):
+                tunnel_config['region'] = ngrok_config['region']
+            if ngrok_config.get('domain'):
+                tunnel_config['domain'] = ngrok_config['domain']
+            
             # Create tunnel
-            tunnel = ngrok.connect(port)
+            tunnel = ngrok.connect(port, **tunnel_config)
             public_url = tunnel.public_url
             
             self.tunnels[port] = tunnel
@@ -86,6 +109,11 @@ class EnvironmentAwarePortManager:
             
         except Exception as e:
             print(f"❌ Failed to setup Colab access: {e}")
+            if "authentication failed" in str(e).lower():
+                print("💡 To fix ngrok authentication:")
+                print("   1. Get free token: https://dashboard.ngrok.com/get-started/your-authtoken")
+                print("   2. Add to .env file: NGROK_AUTH_TOKEN=your_token_here")
+                print("   3. Or set environment: export NGROK_AUTH_TOKEN=your_token_here")
             return self.setup_local_access(port, service_name)
     
     def setup_k8s_access(self, port: int, service_name: str = None) -> Dict[str, str]:

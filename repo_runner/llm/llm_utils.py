@@ -6,6 +6,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
 import re
 import sys
+from ..config_manager import config_manager
 
 # === UNIVERSAL MODEL CONFIGURATION ===
 # Supports public, gated, and paid models with proper authentication
@@ -207,52 +208,71 @@ def create_pipeline_safely(model, tokenizer, **kwargs):
             "text-generation", 
             model=model, 
             tokenizer=tokenizer, 
-            device=0 if DEVICE=="cuda" else -1,
+            device=DEVICE,
             **kwargs
         )
     except Exception as e:
-        if "accelerate" in str(e).lower() and "device" in str(e).lower():
-            # Retry without device parameter for accelerate-loaded models
-            safe_kwargs = {k: v for k, v in kwargs.items() if k != 'device'}
+        if "accelerate" in str(e).lower():
+            # Try without device parameter for accelerate-loaded models
             return pipeline(
                 "text-generation", 
                 model=model, 
                 tokenizer=tokenizer, 
-                **safe_kwargs
+                **kwargs
             )
         else:
-            # Re-raise if it's a different error
             raise e
 
 def get_model_config(agent_name: str) -> Dict[str, Any]:
-    """Get model configuration based on environment variables and agent type."""
+    """Get model configuration using the new config system."""
+    # Get configuration from config manager
+    agent_config = config_manager.get_model_config(agent_name)
+    model_type = agent_config.get('model_type', 'default')
     
-    # Check for premium model type first
-    model_type = os.getenv(f'{agent_name.upper()}_AGENT_MODEL_TYPE', 'default')
-    
-    if model_type == 'premium':
-        return PREMIUM_MODEL_CONFIG.get(agent_name, PREMIUM_MODEL_CONFIG['setup_agent'])
-    elif model_type == 'advanced':
-        return GATED_MODEL_CONFIG.get(agent_name, GATED_MODEL_CONFIG['setup_agent'])
+    # Map model types to configurations
+    if model_type == 'gated':
+        config = GATED_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG[agent_name])
+        # Override with user-specified model if available
+        if agent_config.get('model_name'):
+            config['model_name'] = agent_config['model_name']
+        if agent_config.get('max_tokens'):
+            config['max_tokens'] = agent_config['max_tokens']
+        if agent_config.get('temperature'):
+            config['temperature'] = agent_config['temperature']
+        return config
+    elif model_type == 'premium':
+        config = PREMIUM_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG[agent_name])
+        # Override with user-specified model if available
+        if agent_config.get('model_name'):
+            config['model_name'] = agent_config['model_name']
+        if agent_config.get('max_tokens'):
+            config['max_tokens'] = agent_config['max_tokens']
+        if agent_config.get('temperature'):
+            config['temperature'] = agent_config['temperature']
+        return config
     else:
-        # Use default models
-        return DEFAULT_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG['setup_agent'])
+        # Default to public models
+        config = DEFAULT_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG['detection_agent'])
+        # Override with user-specified model if available
+        if agent_config.get('model_name'):
+            config['model_name'] = agent_config['model_name']
+        if agent_config.get('max_tokens'):
+            config['max_tokens'] = agent_config['max_tokens']
+        if agent_config.get('temperature'):
+            config['temperature'] = agent_config['temperature']
+        return config
 
 def get_authentication_for_model(agent_name: str, config: Dict[str, Any]) -> Optional[str]:
-    """Get authentication token/key for the specified model."""
+    """Get authentication token/key for the specified model using config system."""
     model_type = config.get('type', 'public')
     
     if model_type == 'gated':
-        # Get Hugging Face token
-        return os.getenv(f'{agent_name.upper()}_TOKEN') or os.getenv('HF_TOKEN')
+        # Get Hugging Face token from config
+        return config_manager.get_model_config(agent_name).get('token') or \
+               config_manager.get_api_key('huggingface')
     elif model_type == 'paid':
         provider = config.get('provider', 'openai')
-        if provider == 'openai':
-            return os.getenv('OPENAI_API_KEY')
-        elif provider == 'anthropic':
-            return os.getenv('ANTHROPIC_API_KEY')
-        elif provider == 'google':
-            return os.getenv('GOOGLE_API_KEY')
+        return config_manager.get_api_key(provider)
     
     return None
 

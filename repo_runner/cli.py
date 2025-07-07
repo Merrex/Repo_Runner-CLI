@@ -11,17 +11,18 @@ from .core import RepoRunner
 from .config import Config
 from .logger import setup_logger
 from .agents.orchestrator import Orchestrator
+from .config_manager import config_manager
 
 
 @click.group()
-@click.version_option()
+@click.version_option(version='1.0.0')
 @click.option('--config', '-c', type=click.Path(exists=True), 
               help='Path to configuration file')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
 @click.option('--dry-run', is_flag=True, help='Show what would be done without executing')
 @click.pass_context
 def cli(ctx, config, verbose, dry_run):
-    """repo_runner - Automatically detect, configure, and run code repositories."""
+    """repo_runner - Universal Repository Analysis and Execution Tool"""
     ctx.ensure_object(dict)
     ctx.obj['config'] = Config.load(config) if config else Config()
     ctx.obj['verbose'] = verbose
@@ -76,21 +77,23 @@ def setup(ctx, path, skip_deps, skip_env, skip_db):
 
 @cli.command()
 @click.argument('repo_path', type=click.Path(exists=True))
-@click.option('--mode', default='local', help='Run mode: local or cloud')
-@click.option('--timeout', default=300, help='Timeout in seconds (default: 300)')
-def run(repo_path, mode, timeout):
-    """Run the agentic repo runner on the given repository."""
-    try:
-        result = Orchestrator(timeout=timeout).run(repo_path, mode)
-        click.echo(f"\nFinal result: {result}")
-    except TimeoutError as e:
-        click.echo(f"❌ {e}", err=True)
-        sys.exit(1)
-    except KeyboardInterrupt:
-        click.echo("\n🛑 Operation interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        click.echo(f"❌ Operation failed: {e}", err=True)
+@click.option('--mode', default='local', help='Execution mode (local/cloud)')
+@click.option('--timeout', default=300, help='Timeout in seconds')
+def run(repo_path: str, mode: str, timeout: int):
+    """Run repo_runner on a repository."""
+    from .agents.orchestrator import Orchestrator
+    
+    print(f"🚀 Starting repo_runner in {mode} mode...")
+    print(f"📂 Target repository: {repo_path}")
+    print("⏱️ This may take a few minutes for complex repositories...")
+    
+    orchestrator = Orchestrator(timeout=timeout)
+    result = orchestrator.run(repo_path, mode=mode)
+    
+    if result['status'] == 'success':
+        print("✅ repo_runner completed successfully!")
+    else:
+        print(f"❌ repo_runner failed: {result.get('error', 'Unknown error')}")
         sys.exit(1)
 
 
@@ -164,11 +167,49 @@ def health(ctx, path):
 
 @cli.command()
 def install():
-    """Auto-install system dependencies and verify installation."""
-    from .installer import auto_install
-    success = auto_install()
-    if not success:
+    """Install dependencies and setup environment."""
+    print("🔧 Installing repo_runner dependencies...")
+    
+    try:
+        import subprocess
+        
+        # Install required packages
+        packages = [
+            'transformers',
+            'torch',
+            'requests',
+            'psutil',
+            'python-dotenv',
+            'pyngrok'
+        ]
+        
+        for package in packages:
+            print(f"📦 Installing {package}...")
+            subprocess.run([sys.executable, '-m', 'pip', 'install', package], check=True)
+        
+        print("✅ Dependencies installed successfully!")
+        
+    except Exception as e:
+        print(f"❌ Installation failed: {e}")
         sys.exit(1)
+
+
+@cli.command()
+def config():
+    """Setup and manage configuration."""
+    print("🔧 Configuration Management")
+    print("=" * 50)
+    
+    # Create .env template
+    config_manager.create_env_template()
+    
+    # Print current configuration summary
+    config_manager.print_config_summary()
+    
+    print("\n💡 Next Steps:")
+    print("1. Edit .env.template with your tokens and settings")
+    print("2. Rename to .env: mv .env.template .env")
+    print("3. Run: repo_runner run /path/to/repo")
 
 
 @cli.command()
@@ -195,15 +236,49 @@ def models():
 
 @cli.command()
 def test_models():
-    """Test all models to ensure they work correctly."""
-    from .test_models import test_model_loading, print_summary
+    """Test model availability and configuration."""
+    print("🧪 Testing Model Configuration")
+    print("=" * 50)
     
-    print("🧪 Testing All Models")
-    print("This will test that each agent's model loads and generates responses.")
-    print("This may take a few minutes for the first run as models are downloaded.")
+    from .llm.llm_utils import get_model_config, get_llm_pipeline
     
-    results = test_model_loading()
-    print_summary(results)
+    agents = ['detection_agent', 'requirements_agent', 'setup_agent', 
+              'fixer_agent', 'db_agent', 'health_agent', 'runner_agent']
+    
+    for agent in agents:
+        try:
+            config = get_model_config(agent)
+            print(f"\n🔍 Testing {agent}:")
+            print(f"   Model: {config['model_name']}")
+            print(f"   Type: {config.get('type', 'unknown')}")
+            print(f"   Max Tokens: {config['max_tokens']}")
+            
+            # Try to get pipeline
+            pipeline = get_llm_pipeline(agent)
+            print(f"   Status: ✅ Available")
+            
+        except Exception as e:
+            print(f"   Status: ❌ Failed - {e}")
+    
+    print("\n✅ Model testing completed!")
+
+
+@cli.command()
+def status():
+    """Show current configuration status."""
+    print("📊 Configuration Status")
+    print("=" * 50)
+    
+    # Print configuration summary
+    config_manager.print_config_summary()
+    
+    # Check for .env file
+    env_file = Path('.env')
+    if env_file.exists():
+        print(f"\n✅ Configuration file found: {env_file}")
+    else:
+        print(f"\n⚠️ No .env file found")
+        print("💡 Run 'repo_runner config' to create one")
 
 
 if __name__ == '__main__':
