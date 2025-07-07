@@ -1,12 +1,12 @@
-import os
+from .file_agent import FileAgent
 from typing import Dict, Optional
+import os
 
-class ConfigAgent:
+class ConfigAgent(FileAgent):
     """
     Agent responsible for creating and updating configuration files (ngrok config, .env, etc.)
-    for use by other agents in the system. Designed for agentic interoperability.
+    Inherits from FileAgent for generic file operations. Designed for agentic OOP interoperability.
     """
-
     def create_ngrok_config(self, authtoken: str, tunnels: Dict[str, int], config_path: Optional[str] = None) -> str:
         """
         Create an ngrok config file for multiplexing tunnels.
@@ -19,12 +19,9 @@ class ConfigAgent:
         """
         if config_path is None:
             config_path = os.path.expanduser("~/.config/ngrok/ngrok.yml")
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
         tunnels_yaml = "\n".join([f"  {name}:\n    addr: {port}\n    proto: http" for name, port in tunnels.items()])
         config_content = f"authtoken: {authtoken}\ntunnels:\n{tunnels_yaml}\n"
-        with open(config_path, "w") as f:
-            f.write(config_content)
-        return config_path
+        return self.write_file(config_path, config_content)
 
     def create_env_file(self, env_vars: Dict[str, str], path: str = ".env") -> str:
         """
@@ -36,6 +33,5 @@ class ConfigAgent:
             The path to the .env file.
         """
         lines = [f"{k}={v}" for k, v in env_vars.items()]
-        with open(path, "w") as f:
-            f.write("\n".join(lines) + "\n")
-        return path 
+        content = "\n".join(lines) + "\n"
+        return self.write_file(path, content) 
