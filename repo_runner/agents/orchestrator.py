@@ -8,6 +8,7 @@ from .fixer_agent import FixerAgent
 from .port_manager_agent import PortManagerAgent
 from .file_agent import FileAgent
 from .config_agent import ConfigAgent
+from .dependency_agent import DependencyAgent
 import time
 import signal
 from typing import Dict, List, Any
@@ -523,7 +524,7 @@ class Orchestrator:
     Enhanced orchestrator with autonomous service management.
     
     Agentic OOP Pattern:
-    - Can instantiate and use any agent (FileAgent, ConfigAgent, etc.) at any checkpoint.
+    - Can instantiate and use any agent (FileAgent, ConfigAgent, DependencyAgent, etc.) at any checkpoint.
     - Supports dynamic agent invocation based on workflow, requirements, or repo state.
     - Demonstrates how top-level agents coordinate and delegate to specialized agents for maximum flexibility.
     """
@@ -536,6 +537,7 @@ class Orchestrator:
         # Example: instantiate agents for dynamic use
         self.file_agent = FileAgent()
         self.config_agent = ConfigAgent()
+        self.dependency_agent = DependencyAgent()
     
     def set_port_manager(self, port_manager):
         """Set the port manager for the orchestrator"""
@@ -545,9 +547,20 @@ class Orchestrator:
     def run(self, repo_path: str, mode: str = 'local') -> Dict[str, Any]:
         """
         Main run method that orchestrates the entire workflow.
-        Demonstrates dynamic agent invocation: can use FileAgent/ConfigAgent at any checkpoint.
+        Demonstrates dynamic agent invocation: can use FileAgent/ConfigAgent/DependencyAgent at any checkpoint.
         """
         print("🎯 Starting intelligent workflow orchestration...")
+        
+        # Step 1: Ensure all required dependencies are installed (agentic)
+        required_packages = [
+            'transformers', 'torch', 'pyngrok', 'requests', 'python-dotenv'
+        ]
+        if not self.dependency_agent.ensure_packages(required_packages, upgrade=False):
+            print("❌ Failed to ensure all required dependencies. Exiting workflow.")
+            return {'status': 'error', 'error': 'Dependency installation failed'}
+        if not self.dependency_agent.install_pyngrok():
+            print("❌ pyngrok/ngrok setup failed. Exiting workflow.")
+            return {'status': 'error', 'error': 'pyngrok/ngrok setup failed'}
         
         try:
             # Import required agents
