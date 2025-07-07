@@ -12,7 +12,14 @@ from ..config_manager import config_manager
 from .config_agent import ConfigAgent
 
 class EnvironmentAwarePortManager:
-    """Enhanced port manager that's aware of different environments (Colab, local, Docker, K8s)"""
+    """
+    Enhanced port manager that's aware of different environments (Colab, local, Docker, K8s).
+    
+    Agentic OOP Pattern:
+    - Uses ConfigAgent (child of FileAgent) for all config file creation.
+    - Can be called by orchestrator or other agents at any checkpoint.
+    - Demonstrates agent interoperability and separation of concerns.
+    """
     
     def __init__(self):
         self.environment = self.detect_environment()

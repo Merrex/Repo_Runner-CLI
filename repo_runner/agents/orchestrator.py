@@ -521,8 +521,11 @@ class AutonomousServiceOrchestrator:
 class Orchestrator:
     """
     Enhanced orchestrator with autonomous service management.
-    Demonstrates dynamic agent invocation: can instantiate and use any agent (FileAgent, ConfigAgent, etc.)
-    at any checkpoint, supporting agentic OOP interoperability.
+    
+    Agentic OOP Pattern:
+    - Can instantiate and use any agent (FileAgent, ConfigAgent, etc.) at any checkpoint.
+    - Supports dynamic agent invocation based on workflow, requirements, or repo state.
+    - Demonstrates how top-level agents coordinate and delegate to specialized agents for maximum flexibility.
     """
     
     def __init__(self, timeout=300):
@@ -540,7 +543,10 @@ class Orchestrator:
         self.service_orchestrator.port_manager = port_manager
     
     def run(self, repo_path: str, mode: str = 'local') -> Dict[str, Any]:
-        """Main run method that orchestrates the entire workflow"""
+        """
+        Main run method that orchestrates the entire workflow.
+        Demonstrates dynamic agent invocation: can use FileAgent/ConfigAgent at any checkpoint.
+        """
         print("🎯 Starting intelligent workflow orchestration...")
         
         try:

@@ -5,7 +5,12 @@ import os
 class ConfigAgent(FileAgent):
     """
     Agent responsible for creating and updating configuration files (ngrok config, .env, etc.)
-    Inherits from FileAgent for generic file operations. Designed for agentic OOP interoperability.
+    
+    Agentic OOP Pattern:
+    - Inherits from FileAgent, gaining all generic file operations.
+    - Adds config-specific logic (templating, validation, etc.).
+    - Can be used by any agent (PortManagerAgent, OrchestratorAgent, etc.) for config file creation.
+    - Supports agentic interoperability and dynamic invocation at any checkpoint.
     """
     def create_ngrok_config(self, authtoken: str, tunnels: Dict[str, int], config_path: Optional[str] = None) -> str:
         """

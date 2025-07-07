@@ -4,7 +4,12 @@ from typing import Optional
 class FileAgent:
     """
     Base agent for all file operations (create, read, update, delete).
-    Designed for agentic OOP inheritance and interoperability.
+    
+    Agentic OOP Pattern:
+    - This class is intended to be inherited by specialized file-related agents (e.g., ConfigAgent).
+    - All generic file operations are implemented here for maximum code reuse and agent interoperability.
+    - Any agent in the system can instantiate or receive a FileAgent (or child) to perform file tasks.
+    - Top-level agents (OrchestratorAgent, RequirementAgent) can dynamically invoke any agent, including FileAgent, at any checkpoint.
     """
     def write_file(self, path: str, content: str) -> str:
         """Write content to a file (overwrites if exists). Returns the file path."""
