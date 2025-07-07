@@ -2,7 +2,17 @@ import os
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
-from dotenv import load_dotenv
+
+# Graceful fallback for dotenv import
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    print("⚠️ python-dotenv not available - will use environment variables only")
+    DOTENV_AVAILABLE = False
+    # Create a dummy function
+    def load_dotenv(path=None):
+        pass
 
 class ConfigManager:
     """Universal configuration manager for all tokens, API keys, and settings"""

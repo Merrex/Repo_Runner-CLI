@@ -182,8 +182,6 @@ PREMIUM_MODEL_CONFIG = {
     },
 }
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
 # Cache for loaded pipelines per model
 _llm_pipes = {}
 
@@ -191,12 +189,15 @@ _llm_pipes = {}
 try:
     from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
     import torch
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     TRANSFORMERS_AVAILABLE = True
 except ImportError as e:
     print(f"⚠️ transformers/torch not available: {e}")
+    DEVICE = "cpu"  # fallback
     TRANSFORMERS_AVAILABLE = False
 except Exception as e:
     print(f"⚠️ transformers/torch import error: {e}")
+    DEVICE = "cpu"  # fallback
     TRANSFORMERS_AVAILABLE = False
 
 def create_pipeline_safely(model, tokenizer, **kwargs):
