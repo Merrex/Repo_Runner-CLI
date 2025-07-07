@@ -5,6 +5,150 @@ from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
 
 class SetupAgent:
+    def setup_project(self, repo_path: str):
+        """Main setup method called by orchestrator - automatically detects repo root and sets up the project."""
+        print(f"🔧 Setting up project at: {repo_path}")
+        
+        # Automatically find the actual repo root
+        actual_repo_root = self._find_repo_root(repo_path)
+        if actual_repo_root != repo_path:
+            print(f"📂 Found actual repo root: {actual_repo_root}")
+            repo_path = actual_repo_root
+        
+        # Detect project structure
+        structure = self._detect_project_structure(repo_path)
+        
+        # Setup the project
+        setup_results = self.setup_services(structure)
+        
+        return {
+            'status': 'success',
+            'repo_root': actual_repo_root,
+            'structure': structure,
+            'setup_results': setup_results
+        }
+    
+    def _find_repo_root(self, start_path: str) -> str:
+        """Automatically find the actual repository root by looking for key files."""
+        path = Path(start_path)
+        
+        # Look for key files that indicate a repository root
+        key_files = [
+            '.git',
+            'package.json',
+            'requirements.txt',
+            'pyproject.toml',
+            'Cargo.toml',
+            'go.mod',
+            'pom.xml',
+            'build.gradle',
+            'docker-compose.yml',
+            'docker-compose.yaml',
+            'Dockerfile',
+            'Makefile',
+            'README.md',
+            'README.txt'
+        ]
+        
+        # Search upward from start_path
+        current_path = path
+        while current_path != current_path.parent:
+            for key_file in key_files:
+                if (current_path / key_file).exists():
+                    print(f"✅ Found repo root at: {current_path} (key file: {key_file})")
+                    return str(current_path)
+            current_path = current_path.parent
+        
+        # If no key files found, return the original path
+        print(f"⚠️ No key files found, using original path: {start_path}")
+        return start_path
+    
+    def _detect_project_structure(self, repo_path: str) -> dict:
+        """Detect the project structure for setup."""
+        structure = {
+            'services': [],
+            'files': {},
+            'type': 'unknown'
+        }
+        
+        repo_path_obj = Path(repo_path)
+        
+        # Look for common project files
+        for file_path in repo_path_obj.rglob('*'):
+            if file_path.is_file():
+                relative_path = file_path.relative_to(repo_path_obj)
+                structure['files'][str(relative_path)] = {
+                    'type': 'file',
+                    'size': file_path.stat().st_size
+                }
+                
+                # Detect service types
+                if file_path.name == 'package.json':
+                    service_path = str(file_path.parent.relative_to(repo_path_obj))
+                    structure['services'].append({
+                        'name': file_path.parent.name or 'node-service',
+                        'type': 'node',
+                        'path': service_path,
+                        'framework': self._detect_node_framework(file_path)
+                    })
+                elif file_path.name == 'requirements.txt':
+                    service_path = str(file_path.parent.relative_to(repo_path_obj))
+                    structure['services'].append({
+                        'name': file_path.parent.name or 'python-service',
+                        'type': 'python',
+                        'path': service_path,
+                        'framework': self._detect_python_framework(file_path.parent)
+                    })
+                elif file_path.name == 'Dockerfile':
+                    service_path = str(file_path.parent.relative_to(repo_path_obj))
+                    structure['services'].append({
+                        'name': file_path.parent.name or 'docker-service',
+                        'type': 'docker',
+                        'path': service_path
+                    })
+        
+        return structure
+    
+    def _detect_node_framework(self, package_json_path: Path) -> str:
+        """Detect Node.js framework from package.json."""
+        try:
+            with open(package_json_path, 'r') as f:
+                package_data = json.load(f)
+            
+            dependencies = package_data.get('dependencies', {})
+            dev_dependencies = package_data.get('devDependencies', {})
+            all_deps = {**dependencies, **dev_dependencies}
+            
+            if 'next' in all_deps:
+                return 'next'
+            elif 'react' in all_deps:
+                return 'react'
+            elif 'express' in all_deps:
+                return 'express'
+            elif 'vue' in all_deps:
+                return 'vue'
+            elif 'angular' in all_deps:
+                return 'angular'
+            else:
+                return 'node'
+        except:
+            return 'node'
+    
+    def _detect_python_framework(self, service_path: Path) -> str:
+        """Detect Python framework from service directory."""
+        try:
+            # Check for common Python frameworks
+            if (service_path / 'manage.py').exists():
+                return 'django'
+            elif (service_path / 'app.py').exists() or (service_path / 'main.py').exists():
+                return 'flask'
+            elif (service_path / 'fastapi').exists() or any('fastapi' in f.read_text() for f in service_path.glob('*.py') if f.is_file()):
+                return 'fastapi'
+            else:
+                return 'python'
+        except:
+            return 'python'
+
     def install(self, reqs):
         """Install dependencies and set up environment using LLM."""
         structure = reqs.get('structure', {})
