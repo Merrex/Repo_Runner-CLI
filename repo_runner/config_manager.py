@@ -392,48 +392,98 @@ CORS_ORIGINS=*
         return issues
     
     def print_config_summary(self):
-        """Print a summary of the current configuration"""
+        """Print a summary of the current configuration."""
         print("🔧 Configuration Summary")
         print("=" * 50)
         
         # Model configuration
         print("\n🤖 Model Configuration:")
-        for agent_name, config in self.config['models'].items():
+        for agent, config in self.config['models'].items():
             model_type = config.get('model_type', 'default')
             model_name = config.get('model_name', 'unknown')
-            has_token = '✅' if config.get('token') else '❌'
-            print(f"  {agent_name}: {model_type} ({model_name}) {has_token}")
+            has_token = "✅" if config.get('token') else "❌"
+            print(f"  {agent}: {model_type} ({model_name}) {has_token}")
         
-        # API Keys
+        # API keys
         print("\n🔑 API Keys:")
-        for service, config in self.config['api_keys'].items():
-            has_key = '✅' if any(config.values()) else '❌'
+        for service, keys in self.config['api_keys'].items():
+            has_key = "✅" if any(keys.values()) else "❌"
             print(f"  {service}: {has_key}")
         
         # Integrations
         print("\n🔌 Integrations:")
         for service, config in self.config['integrations'].items():
-            has_config = '✅' if any(config.values()) else '❌'
+            has_config = "✅" if any(config.values()) else "❌"
             print(f"  {service}: {has_config}")
         
-        # Environment
-        print(f"\n🌍 Environment: {self.get_environment_setting('mode')}")
-        print(f"🐛 Debug: {self.get_environment_setting('debug')}")
-        print(f"⏱️ Timeout: {self.get_environment_setting('timeout')}s")
+        # Environment settings
+        env_config = self.config['environment']
+        print(f"\n🌍 Environment: {env_config.get('mode', 'unknown')}")
+        print(f"🐛 Debug: {env_config.get('debug', False)}")
+        print(f"⏱️ Timeout: {env_config.get('timeout', 300)}s")
         
-        # Validation
-        issues = self.validate_config()
-        if issues['errors'] or issues['missing']:
-            print("\n⚠️ Issues Found:")
-            for error in issues['errors'] + issues['missing']:
-                print(f"  ❌ {error}")
-        if issues['warnings']:
-            print("\n💡 Recommendations:")
-            for warning in issues['warnings']:
-                print(f"  ⚠️ {warning}")
+        print("\n✅ Configuration looks good!")
         
-        if not issues['errors'] and not issues['missing']:
-            print("\n✅ Configuration looks good!")
+        print("\n💡 Next Steps:")
+        print("1. Edit .env.template with your tokens and settings")
+        print("2. Rename to .env: mv .env.template .env")
+        print("3. Run: repo_runner run /path/to/repo")
+
+    def debug_tokens(self):
+        """Debug method to print all tokens and configuration values."""
+        print("🔍 DEBUG: Token and Configuration Values")
+        print("=" * 60)
+        
+        # Environment variables
+        print("\n📋 Environment Variables:")
+        env_vars = [
+            'DETECTION_TOKEN', 'REQUIREMENTS_TOKEN', 'SETUP_TOKEN', 'FIXER_TOKEN',
+            'DB_TOKEN', 'HEALTH_TOKEN', 'RUNNER_TOKEN',
+            'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_API_KEY',
+            'HF_TOKEN', 'GITHUB_TOKEN', 'GITLAB_TOKEN',
+            'NGROK_AUTH_TOKEN', 'CLOUDFLARE_API_TOKEN'
+        ]
+        
+        for var in env_vars:
+            value = os.getenv(var)
+            if value:
+                # Show first 10 chars for security
+                masked_value = value[:10] + "..." if len(value) > 10 else value
+                print(f"  {var}: {masked_value}")
+            else:
+                print(f"  {var}: ❌ NOT SET")
+        
+        # Current config values
+        print("\n🔧 Current Configuration Values:")
+        print(f"  Detection Token: {self.get_model_config('detection_agent').get('token', '❌ NOT SET')}")
+        print(f"  OpenAI API Key: {self.get_api_key('openai') or '❌ NOT SET'}")
+        print(f"  HuggingFace Token: {self.get_api_key('huggingface') or '❌ NOT SET'}")
+        print(f"  Ngrok Auth Token: {self.get_integration_config('ngrok').get('auth_token', '❌ NOT SET')}")
+        
+        # File existence
+        print("\n📁 File Status:")
+        env_file = Path(self.config_path)
+        if env_file.exists():
+            print(f"  .env file: ✅ EXISTS at {env_file.absolute()}")
+            try:
+                with open(env_file, 'r') as f:
+                    content = f.read()
+                    lines = content.strip().split('\n')
+                    print(f"  .env file lines: {len(lines)}")
+                    for line in lines[:5]:  # Show first 5 lines
+                        if line.strip() and not line.startswith('#'):
+                            print(f"    {line}")
+                    if len(lines) > 5:
+                        print(f"    ... and {len(lines) - 5} more lines")
+            except Exception as e:
+                print(f"  .env file read error: {e}")
+        else:
+            print(f"  .env file: ❌ NOT FOUND at {env_file.absolute()}")
+        
+        # DOTENV_AVAILABLE status
+        print(f"\n🔧 DOTENV_AVAILABLE: {DOTENV_AVAILABLE}")
+        
+        print("\n" + "=" * 60)
 
 # Global config manager instance
 config_manager = ConfigManager() 

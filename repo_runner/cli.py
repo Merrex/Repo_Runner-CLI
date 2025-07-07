@@ -200,16 +200,19 @@ def config():
     print("🔧 Configuration Management")
     print("=" * 50)
     
-    # Create .env template
+    # Create template
     config_manager.create_env_template()
+    print("✅ Created configuration template: .env.template")
+    print("📝 Edit this file with your actual tokens and settings")
     
-    # Print current configuration summary
+    # Print summary
     config_manager.print_config_summary()
-    
-    print("\n💡 Next Steps:")
-    print("1. Edit .env.template with your tokens and settings")
-    print("2. Rename to .env: mv .env.template .env")
-    print("3. Run: repo_runner run /path/to/repo")
+
+
+@cli.command()
+def debug():
+    """Debug configuration and tokens."""
+    config_manager.debug_tokens()
 
 
 @cli.command()
