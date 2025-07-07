@@ -3,8 +3,9 @@ import json
 import os
 from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
+from .base_agent import BaseAgent
 
-class SetupAgent:
+class SetupAgent(BaseAgent):
     def setup_project(self, repo_path: str):
         """Main setup method called by orchestrator - automatically detects repo root and sets up the project."""
         print(f"🔧 Setting up project at: {repo_path}")

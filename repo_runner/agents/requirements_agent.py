@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
+from .base_agent import BaseAgent
 
-class RequirementsAgent:
+class RequirementsAgent(BaseAgent):
     def ensure_requirements(self, structure):
         """Ensure requirements/config files exist and are correct using LLM."""
         files = structure.get('files', {})

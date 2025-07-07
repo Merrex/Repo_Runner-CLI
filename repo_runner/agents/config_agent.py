@@ -1,8 +1,9 @@
+from .base_agent import BaseAgent
 from .file_agent import FileAgent
 from typing import Dict, Optional
 import os
 
-class ConfigAgent(FileAgent):
+class ConfigAgent(FileAgent, BaseAgent):
     """
     Agent responsible for creating and updating configuration files (ngrok config, .env, etc.)
     

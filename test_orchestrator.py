@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from repo_runner.agents.orchestrator import Orchestrator
+from repo_runner.managers.orchestrator import Orchestrator
 
 def test_orchestrator():
     """Test the orchestrator with port management."""

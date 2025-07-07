@@ -4,8 +4,9 @@ import os
 import sys
 from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
+from .base_agent import BaseAgent
 
-class FixerAgent:
+class FixerAgent(BaseAgent):
     def fix(self, errors, structure):
         """Use WizardCoder to analyze and fix errors."""
         if not errors:

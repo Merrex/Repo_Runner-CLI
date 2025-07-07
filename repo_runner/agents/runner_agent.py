@@ -6,13 +6,15 @@ import signal
 from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
 from .dependency_agent import DependencyAgent
+from .base_agent import BaseAgent
 
-class RunnerAgent:
+class RunnerAgent(BaseAgent):
     """
     Agent responsible for running and managing the main application workflow.
     Uses DependencyAgent for all dependency management (agentic OOP pattern).
     """
     def __init__(self):
+        super().__init__()
         self.dependency_agent = DependencyAgent()
         self.dependency_agent.ensure_packages(['requests'], upgrade=False)
 

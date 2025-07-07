@@ -11,8 +11,9 @@ from pathlib import Path
 from ..config_manager import config_manager
 from .config_agent import ConfigAgent
 from .dependency_agent import DependencyAgent
+from .base_manager import BaseManager
 
-class EnvironmentAwarePortManager:
+class EnvironmentAwarePortManager(BaseManager):
     """
     Enhanced port manager that's aware of different environments (Colab, local, Docker, K8s).
     Uses DependencyAgent for all dependency management (agentic OOP pattern).
@@ -293,7 +294,7 @@ spec:
             return False
 
 # Enhanced Port Manager Agent
-class PortManagerAgent:
+class PortManagerAgent(BaseManager):
     """Enhanced port manager agent with environment awareness"""
     
     def __init__(self):

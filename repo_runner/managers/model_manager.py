@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Tuple
+from .base_manager import BaseManager
 
-class ModelManager:
+class ModelManager(BaseManager):
     """
     Agentic ModelManager for centralized model configuration, selection, and fallback.
     - Stores model configs for each agent and tier (free, advanced, premium).
@@ -94,6 +95,6 @@ class ModelManager:
 def get_model_manager() -> ModelManager:
     """
     Get the shared ModelManager singleton instance for agentic access.
-    Usage: from repo_runner.agents.model_manager import get_model_manager
+    Usage: from repo_runner.managers.model_manager import get_model_manager
     """
     return ModelManager() 

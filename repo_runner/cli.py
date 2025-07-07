@@ -48,7 +48,7 @@ ensure_dependencies()
 from .core import RepoRunner
 from .config import Config
 from .logger import setup_logger
-from .agents.orchestrator import Orchestrator
+from .managers.orchestrator import Orchestrator
 from .config_manager import config_manager
 
 
@@ -119,7 +119,7 @@ def setup(ctx, path, skip_deps, skip_env, skip_db):
 @click.option('--timeout', default=300, help='Timeout in seconds')
 def run(repo_path: str, mode: str, timeout: int):
     """Run repo_runner on a repository."""
-    from .agents.orchestrator import Orchestrator
+    from .managers.orchestrator import Orchestrator
     
     print(f"🚀 Starting repo_runner in {mode} mode...")
     print(f"📂 Target repository: {repo_path}")

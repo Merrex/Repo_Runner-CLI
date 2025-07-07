@@ -3,8 +3,9 @@ import json
 import os
 from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
+from .base_agent import BaseAgent
 
-class DBAgent:
+class DBAgent(BaseAgent):
     def setup(self, structure):
         """Detect and set up the database using LLM."""
         files = structure.get('files', {})

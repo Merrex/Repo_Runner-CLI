@@ -185,10 +185,10 @@ def test_agent_integration():
         from repo_runner.agents.detection_agent import DetectionAgent
         from repo_runner.agents.requirements_agent import RequirementsAgent
         from repo_runner.agents.setup_agent import SetupAgent
-        from repo_runner.agents.port_manager_agent import PortManagerAgent
         from repo_runner.agents.runner_agent import RunnerAgent
         from repo_runner.agents.health_agent import HealthAgent
-        from repo_runner.agents.orchestrator import Orchestrator
+        from repo_runner.managers.orchestrator import Orchestrator
+        from repo_runner.managers.port_manager import PortManagerAgent
         
         print("\n🔍 Phase 1: Repository Detection")
         detection_agent = DetectionAgent()

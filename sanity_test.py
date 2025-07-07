@@ -63,8 +63,8 @@ def run_sanity_test():
         from repo_runner.agents.detection_agent import DetectionAgent
         from repo_runner.agents.requirements_agent import RequirementsAgent
         from repo_runner.agents.setup_agent import SetupAgent
-        from repo_runner.agents.port_manager_agent import PortManagerAgent
-        from repo_runner.agents.orchestrator import Orchestrator
+        from repo_runner.managers.port_manager import PortManagerAgent
+        from repo_runner.managers.orchestrator import Orchestrator
         print("✅ All agents imported successfully")
         
         # Test 2: Detection

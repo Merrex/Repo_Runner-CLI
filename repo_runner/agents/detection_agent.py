@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 import re
 from ..llm.llm_utils import generate_code_with_llm
+from .base_agent import BaseAgent
 
 class RecursiveConfigScanner:
     """Enhanced config scanner that recursively searches all directories"""
@@ -351,10 +352,11 @@ class RecursiveConfigScanner:
         return summary
 
 # Enhanced Detection Agent
-class DetectionAgent:
+class DetectionAgent(BaseAgent):
     """Enhanced detection agent with recursive config scanning"""
     
     def __init__(self):
+        super().__init__()
         self.config_scanner = RecursiveConfigScanner()
         self.detected_services = {}
         self.project_structure = {}

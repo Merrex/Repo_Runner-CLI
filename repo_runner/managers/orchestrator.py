@@ -18,11 +18,13 @@ import threading
 from pathlib import Path
 import json
 import yaml
+from .base_manager import BaseManager
 
-class AutonomousServiceOrchestrator:
+class AutonomousServiceOrchestrator(BaseManager):
     """Fully autonomous service orchestrator with environment awareness"""
     
     def __init__(self):
+        super().__init__()
         self.running_services = {}
         self.service_processes = {}
         self.port_manager = None  # Will be set by main orchestrator
@@ -519,7 +521,7 @@ class AutonomousServiceOrchestrator:
                 print(f"❌ Failed to stop {service_name}: {e}")
 
 # Enhanced Orchestrator
-class Orchestrator:
+class Orchestrator(BaseManager):
     """
     Enhanced orchestrator with autonomous service management.
     
@@ -530,6 +532,7 @@ class Orchestrator:
     """
     
     def __init__(self, timeout=300):
+        super().__init__()
         self.timeout = timeout
         self.service_orchestrator = AutonomousServiceOrchestrator()
         self.detection_results = {}

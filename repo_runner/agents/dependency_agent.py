@@ -2,8 +2,9 @@ import subprocess
 import sys
 import importlib
 from typing import List, Optional
+from .base_agent import BaseAgent
 
-class DependencyAgent:
+class DependencyAgent(BaseAgent):
     """
     Agent responsible for checking, installing, and upgrading Python packages and system binaries.
     Designed for agentic, reusable dependency management. Can be called by orchestrator or any agent.

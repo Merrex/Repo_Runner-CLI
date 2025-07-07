@@ -108,7 +108,8 @@ def test_service_detection():
     print("🧪 Testing service detection...")
     
     try:
-        from repo_runner.agents.orchestrator import AutonomousServiceOrchestrator
+        from repo_runner.managers.orchestrator import AutonomousServiceOrchestrator
+        from repo_runner.managers.port_manager import EnvironmentAwarePortManager
         
         orchestrator = AutonomousServiceOrchestrator()
         

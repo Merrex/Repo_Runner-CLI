@@ -1,7 +1,8 @@
 import os
 from typing import Optional
+from .base_agent import BaseAgent
 
-class FileAgent:
+class FileAgent(BaseAgent):
     """
     Base agent for all file operations (create, read, update, delete).
     
