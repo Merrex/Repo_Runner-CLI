@@ -9,6 +9,7 @@ import requests
 import json
 from pathlib import Path
 from ..config_manager import config_manager
+from .config_agent import ConfigAgent
 
 class EnvironmentAwarePortManager:
     """Enhanced port manager that's aware of different environments (Colab, local, Docker, K8s)"""
@@ -17,6 +18,7 @@ class EnvironmentAwarePortManager:
         self.environment = self.detect_environment()
         self.port_mappings = {}
         self.tunnels = {}
+        self.config_agent = ConfigAgent()  # Agentic config file manager
         print(f"🔍 Detected environment: {self.environment}")
     
     def detect_environment(self) -> str:
@@ -81,37 +83,45 @@ class EnvironmentAwarePortManager:
             ngrok_config = config_manager.get_integration_config('ngrok')
             auth_token = ngrok_config.get('auth_token')
             
-            # Set ngrok auth token if available
+            # Use ConfigAgent to generate multiplexing config if needed
+            multiplex_ports = {service_name or f"service_{port}": port}
+            config_path = os.path.expanduser("~/.config/ngrok/ngrok.yml")
             if auth_token:
-                try:
-                    ngrok.set_auth_token(auth_token)
-                    print("✅ Ngrok authentication configured")
-                except Exception as e:
-                    print(f"⚠️ Ngrok auth token setup failed: {e}")
+                self.config_agent.create_ngrok_config(auth_token, multiplex_ports, config_path)
+                os.environ['NGROK_CONFIG'] = config_path
+                print(f"✅ Ngrok multiplex config written via ConfigAgent: {config_path}")
             else:
                 print("⚠️ No NGROK_AUTH_TOKEN found - using free tier (limited)")
                 print("💡 Get free token at: https://dashboard.ngrok.com/get-started/your-authtoken")
             
-            # Create tunnel with configuration
-            tunnel_config = {}
-            if ngrok_config.get('domain'):
-                tunnel_config['domain'] = ngrok_config['domain']
+            # Start ngrok agent with config (multiplexing)
+            ngrok_process = subprocess.Popen(['ngrok', 'start', '--all'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.tunnels[port] = ngrok_process  # Store process, not tunnel object
             
-            # Create tunnel (removed region parameter to avoid ngrok v2/v3 compatibility issues)
-            tunnel = ngrok.connect(port, **tunnel_config)
-            public_url = tunnel.public_url
+            # Wait for ngrok to be ready and fetch public URL
+            import time, requests
+            time.sleep(3)
+            try:
+                tunnels_info = requests.get('http://localhost:4040/api/tunnels').json()['tunnels']
+                public_url = None
+                for tunnel in tunnels_info:
+                    if str(port) in tunnel['config']['addr']:
+                        public_url = tunnel['public_url']
+                        break
+                if not public_url:
+                    public_url = f"http://localhost:{port}"
+            except Exception as e:
+                print(f"❌ Could not fetch ngrok public URL: {e}")
+                public_url = f"http://localhost:{port}"
             
-            self.tunnels[port] = tunnel
             self.port_mappings[port] = {
                 'local_url': f"http://localhost:{port}",
                 'public_url': public_url,
                 'environment': 'colab',
                 'service_name': service_name
             }
-            
             print(f"✅ Colab access setup: {public_url}")
             return self.port_mappings[port]
-            
         except Exception as e:
             print(f"❌ Failed to setup Colab access: {e}")
             if "authentication failed" in str(e).lower():
