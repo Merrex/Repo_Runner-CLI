@@ -83,7 +83,7 @@ class EnvironmentAwarePortManager:
             ngrok_config = config_manager.get_integration_config('ngrok')
             auth_token = ngrok_config.get('auth_token')
             
-            # Use ConfigAgent to generate multiplexing config if needed
+            # Use ConfigAgent (child of FileAgent) for ngrok config creation
             multiplex_ports = {service_name or f"service_{port}": port}
             config_path = os.path.expanduser("~/.config/ngrok/ngrok.yml")
             if auth_token:
