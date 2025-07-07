@@ -1,14 +1,14 @@
-from .detection_agent import DetectionAgent
-from .requirements_agent import RequirementsAgent
-from .setup_agent import SetupAgent
-from .db_agent import DBAgent
-from .runner_agent import RunnerAgent
-from .health_agent import HealthAgent
-from .fixer_agent import FixerAgent
-from .port_manager_agent import PortManagerAgent
-from .file_agent import FileAgent
-from .config_agent import ConfigAgent
-from .dependency_agent import DependencyAgent
+from repo_runner.agents.detection_agent import DetectionAgent
+from repo_runner.agents.requirements_agent import RequirementsAgent
+from repo_runner.agents.setup_agent import SetupAgent
+from repo_runner.agents.db_agent import DBAgent
+from repo_runner.agents.runner_agent import RunnerAgent
+from repo_runner.agents.health_agent import HealthAgent
+from repo_runner.agents.fixer_agent import FixerAgent
+from .port_manager import PortManagerAgent
+from repo_runner.agents.file_agent import FileAgent
+from repo_runner.agents.config_agent import ConfigAgent
+from repo_runner.agents.dependency_agent import DependencyAgent
 import time
 import signal
 from typing import Dict, List, Any
@@ -567,11 +567,11 @@ class Orchestrator(BaseManager):
         
         try:
             # Import required agents
-            from .detection_agent import DetectionAgent
-            from .requirements_agent import RequirementsAgent
-            from .setup_agent import SetupAgent
-            from .port_manager_agent import PortManagerAgent
-            from .health_agent import HealthAgent
+            from repo_runner.agents.detection_agent import DetectionAgent
+            from repo_runner.agents.requirements_agent import RequirementsAgent
+            from repo_runner.agents.setup_agent import SetupAgent
+            from repo_runner.agents.port_manager_agent import PortManagerAgent
+            from repo_runner.agents.health_agent import HealthAgent
             
             # Initialize agents
             detection_agent = DetectionAgent()

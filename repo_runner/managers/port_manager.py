@@ -8,9 +8,9 @@ from typing import Dict, List, Optional, Tuple
 import requests
 import json
 from pathlib import Path
-from ..config_manager import config_manager
-from .config_agent import ConfigAgent
-from .dependency_agent import DependencyAgent
+from repo_runner.config_manager import config_manager
+from repo_runner.agents.config_agent import ConfigAgent
+from repo_runner.agents.dependency_agent import DependencyAgent
 from .base_manager import BaseManager
 
 class EnvironmentAwarePortManager(BaseManager):
