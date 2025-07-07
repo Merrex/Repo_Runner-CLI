@@ -7,46 +7,54 @@ class ModelManager:
     - Provides methods to get the best model for an agent, with fallback.
     - Allows dynamic updates and listing of available models.
     - Designed for use by all agents and orchestrator.
+    - Implemented as a singleton for agentic access at any checkpoint.
     """
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self, model_configs: Optional[Dict[str, Dict[str, str]]] = None):
-        # Default model configs for all agents
-        self.model_configs = model_configs or {
-            'detection_agent': {
-                'free': 'microsoft/DialoGPT-medium',
-                'advanced': 'gpt-3.5-turbo',
-                'premium': 'gpt-4',
-            },
-            'requirements_agent': {
-                'free': 'microsoft/DialoGPT-medium',
-                'advanced': 'gpt-3.5-turbo',
-                'premium': 'gpt-4',
-            },
-            'setup_agent': {
-                'free': 'microsoft/DialoGPT-medium',
-                'advanced': 'gpt-3.5-turbo',
-                'premium': 'gpt-4',
-            },
-            'fixer_agent': {
-                'free': 'microsoft/DialoGPT-medium',
-                'advanced': 'gpt-3.5-turbo',
-                'premium': 'gpt-4',
-            },
-            'db_agent': {
-                'free': 'microsoft/DialoGPT-medium',
-                'advanced': 'gpt-3.5-turbo',
-                'premium': 'gpt-4',
-            },
-            'health_agent': {
-                'free': 'microsoft/DialoGPT-small',
-                'advanced': 'gpt-3.5-turbo',
-                'premium': 'gpt-4',
-            },
-            'runner_agent': {
-                'free': 'microsoft/DialoGPT-medium',
-                'advanced': 'gpt-3.5-turbo',
-                'premium': 'gpt-4',
-            },
-        }
+        if not hasattr(self, 'model_configs') or self.model_configs is None:
+            self.model_configs = model_configs or {
+                'detection_agent': {
+                    'free': 'microsoft/DialoGPT-medium',
+                    'advanced': 'gpt-3.5-turbo',
+                    'premium': 'gpt-4',
+                },
+                'requirements_agent': {
+                    'free': 'microsoft/DialoGPT-medium',
+                    'advanced': 'gpt-3.5-turbo',
+                    'premium': 'gpt-4',
+                },
+                'setup_agent': {
+                    'free': 'microsoft/DialoGPT-medium',
+                    'advanced': 'gpt-3.5-turbo',
+                    'premium': 'gpt-4',
+                },
+                'fixer_agent': {
+                    'free': 'microsoft/DialoGPT-medium',
+                    'advanced': 'gpt-3.5-turbo',
+                    'premium': 'gpt-4',
+                },
+                'db_agent': {
+                    'free': 'microsoft/DialoGPT-medium',
+                    'advanced': 'gpt-3.5-turbo',
+                    'premium': 'gpt-4',
+                },
+                'health_agent': {
+                    'free': 'microsoft/DialoGPT-small',
+                    'advanced': 'gpt-3.5-turbo',
+                    'premium': 'gpt-4',
+                },
+                'runner_agent': {
+                    'free': 'microsoft/DialoGPT-medium',
+                    'advanced': 'gpt-3.5-turbo',
+                    'premium': 'gpt-4',
+                },
+            }
 
     def get_model(self, agent_name: str, tier_order: Tuple[str, ...] = ('premium', 'advanced', 'free')) -> Optional[str]:
         """
@@ -80,4 +88,12 @@ class ModelManager:
         """
         List available tiers for a given agent.
         """
-        return list(self.model_configs.get(agent_name, {}).keys()) 
+        return list(self.model_configs.get(agent_name, {}).keys())
+
+# Singleton accessor for agentic use at any checkpoint
+def get_model_manager() -> ModelManager:
+    """
+    Get the shared ModelManager singleton instance for agentic access.
+    Usage: from repo_runner.agents.model_manager import get_model_manager
+    """
+    return ModelManager() 
