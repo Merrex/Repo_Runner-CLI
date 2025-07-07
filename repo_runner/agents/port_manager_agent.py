@@ -10,15 +10,12 @@ import json
 from pathlib import Path
 from ..config_manager import config_manager
 from .config_agent import ConfigAgent
+from .dependency_agent import DependencyAgent
 
 class EnvironmentAwarePortManager:
     """
     Enhanced port manager that's aware of different environments (Colab, local, Docker, K8s).
-    
-    Agentic OOP Pattern:
-    - Uses ConfigAgent (child of FileAgent) for all config file creation.
-    - Can be called by orchestrator or other agents at any checkpoint.
-    - Demonstrates agent interoperability and separation of concerns.
+    Uses DependencyAgent for all dependency management (agentic OOP pattern).
     """
     
     def __init__(self):
@@ -26,6 +23,8 @@ class EnvironmentAwarePortManager:
         self.port_mappings = {}
         self.tunnels = {}
         self.config_agent = ConfigAgent()  # Agentic config file manager
+        self.dependency_agent = DependencyAgent()
+        self.dependency_agent.ensure_packages(['pyngrok', 'requests'], upgrade=False)
         print(f"🔍 Detected environment: {self.environment}")
     
     def detect_environment(self) -> str:

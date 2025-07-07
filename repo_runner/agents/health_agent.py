@@ -4,8 +4,17 @@ import json
 import time
 from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
+from .dependency_agent import DependencyAgent
 
 class HealthAgent:
+    """
+    Agent responsible for health checks and monitoring.
+    Uses DependencyAgent for all dependency management (agentic OOP pattern).
+    """
+    def __init__(self):
+        self.dependency_agent = DependencyAgent()
+        self.dependency_agent.ensure_packages(['requests'], upgrade=False)
+
     def check(self, run_status):
         """Check the health of the running service(s) using LLM."""
         # Handle case where run_status is a string (repo path)

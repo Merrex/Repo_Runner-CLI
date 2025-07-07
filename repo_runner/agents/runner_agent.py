@@ -5,8 +5,17 @@ import time
 import signal
 from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
+from .dependency_agent import DependencyAgent
 
 class RunnerAgent:
+    """
+    Agent responsible for running and managing the main application workflow.
+    Uses DependencyAgent for all dependency management (agentic OOP pattern).
+    """
+    def __init__(self):
+        self.dependency_agent = DependencyAgent()
+        self.dependency_agent.ensure_packages(['requests'], upgrade=False)
+
     def start(self, structure, mode="local", allocated_ports=None):
         """Start all detected services using LLM for intelligent execution."""
         services = structure.get('services', [])
