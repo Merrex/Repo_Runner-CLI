@@ -192,9 +192,22 @@ try:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     TRANSFORMERS_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠️ transformers/torch not available: {e}")
-    DEVICE = "cpu"  # fallback
-    TRANSFORMERS_AVAILABLE = False
+    print(f"⚠️ transformers/torch not available - attempting to install automatically...")
+    try:
+        import subprocess
+        import sys
+        print("📦 Installing transformers and torch...")
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'transformers', 'torch'])
+        from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+        import torch
+        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+        TRANSFORMERS_AVAILABLE = True
+        print("✅ transformers and torch installed successfully")
+    except Exception as install_error:
+        print(f"❌ Failed to install transformers/torch automatically: {install_error}")
+        print(f"⚠️ transformers/torch not available: {e}")
+        DEVICE = "cpu"  # fallback
+        TRANSFORMERS_AVAILABLE = False
 except Exception as e:
     print(f"⚠️ transformers/torch import error: {e}")
     DEVICE = "cpu"  # fallback

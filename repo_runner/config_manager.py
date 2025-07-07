@@ -8,11 +8,21 @@ try:
     from dotenv import load_dotenv
     DOTENV_AVAILABLE = True
 except ImportError:
-    print("⚠️ python-dotenv not available - will use environment variables only")
-    DOTENV_AVAILABLE = False
-    # Create a dummy function
-    def load_dotenv(path=None):
-        pass
+    print("⚠️ python-dotenv not available - attempting to install automatically...")
+    try:
+        import subprocess
+        import sys
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'python-dotenv'])
+        from dotenv import load_dotenv
+        DOTENV_AVAILABLE = True
+        print("✅ python-dotenv installed successfully")
+    except Exception as e:
+        print(f"❌ Failed to install python-dotenv automatically: {e}")
+        print("⚠️ Will use environment variables only")
+        DOTENV_AVAILABLE = False
+        # Create a dummy function
+        def load_dotenv(path=None):
+            pass
 
 class ConfigManager:
     """Universal configuration manager for all tokens, API keys, and settings"""

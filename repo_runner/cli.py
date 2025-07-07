@@ -7,6 +7,44 @@ import click
 import os
 import sys
 from pathlib import Path
+
+# Auto-install missing dependencies
+def ensure_dependencies():
+    """Ensure all required dependencies are installed."""
+    missing_deps = []
+    
+    # Check for python-dotenv
+    try:
+        import dotenv
+    except ImportError:
+        missing_deps.append('python-dotenv')
+    
+    # Check for transformers
+    try:
+        import transformers
+    except ImportError:
+        missing_deps.append('transformers')
+    
+    # Check for torch
+    try:
+        import torch
+    except ImportError:
+        missing_deps.append('torch')
+    
+    # Install missing dependencies
+    if missing_deps:
+        print(f"🔧 Installing missing dependencies: {', '.join(missing_deps)}")
+        try:
+            import subprocess
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + missing_deps)
+            print("✅ Dependencies installed successfully")
+        except Exception as e:
+            print(f"⚠️ Failed to install some dependencies: {e}")
+            print("The system will continue with fallback functionality")
+
+# Run dependency check
+ensure_dependencies()
+
 from .core import RepoRunner
 from .config import Config
 from .logger import setup_logger
