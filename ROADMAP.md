@@ -150,4 +150,66 @@
 - Health monitoring provides real-time status
 - Error handling ensures graceful failures
 - Testing framework validates all components
-- Documentation guides users through setup and usage 
+- Documentation guides users through setup and usage
+
+# Repo Runner Roadmap & Checklist
+
+## Vision (Updated)
+- **Agentic, modular, and cloud-portable repo runner**
+- **Clear separation:**
+  - Managers: Decision-makers, workflow orchestrators, environment-aware logic
+  - Agents: Technical specialists, generative/code/infra tasks
+- **Parent-child relationships:**
+  - BaseManager and BaseAgent for extensibility, abstraction, and security
+- **Cloud/Env Awareness:**
+  - Detects Colab, AWS, GCP, Docker, Kubernetes, Local, etc.
+  - Aligns all critical dependencies (torch, torchvision, torchaudio, transformers, etc.) to the correct versions for the detected environment
+  - Handles version mismatches and pip conflicts automatically
+- **Checkpointing:**
+  - Every agent and manager can checkpoint after critical steps (dependency install, config, etc.)
+  - If a step fails, logs and halts or falls back
+- **Extensible:**
+  - Easy to add new agents, managers, or cloud environments
+
+---
+
+## Implementation Scope (as of now)
+- [x] **Managers/Agents refactor:**
+  - [x] Managers in `repo_runner/managers/`, inherit from `BaseManager`
+  - [x] Agents in `repo_runner/agents/`, inherit from `BaseAgent`
+  - [x] Imports and architecture documentation updated
+- [x] **Environment detection:**
+  - [x] Colab, AWS, GCP, Docker, Kubernetes, Local
+- [x] **Dependency auto-install:**
+  - [x] CLI and agents auto-install missing dependencies
+- [ ] **Cloud-specific dependency alignment:**
+  - [ ] Define dependency matrix for each environment (Colab, AWS, GCP, Local, etc.)
+  - [ ] Implement logic in DependencyAgent/SetupAgent to uninstall/reinstall correct versions
+  - [ ] Wire into orchestrator/manager flow before agent execution
+  - [ ] Checkpoint after install, verify, and log
+- [x] **.env/config management:**
+  - [x] ConfigAgent creates/updates .env and ngrok config
+- [x] **Notebook/Colab support:**
+  - [x] Notebooks for Colab and local testing
+  - [x] Colab-specific dependency handling (in progress)
+- [ ] **Extensible agent/manager workflow:**
+  - [ ] Allow agents to request dependency checks at their checkpoints
+  - [ ] Allow managers to trigger dependency realignment as needed
+- [ ] **Error handling and logging:**
+  - [ ] Improved error messages for dependency/version issues
+  - [ ] Fallbacks and recovery for failed installs
+
+---
+
+## Next Steps
+- [ ] Finalize and implement cloud-specific dependency alignment logic
+- [ ] Add/extend dependency matrix for AWS, GCP, etc.
+- [ ] Integrate checkpointing and logging for all critical steps
+- [ ] Test across Colab, local, and at least one cloud (AWS/GCP)
+- [ ] Document new workflow in ARCHITECTURE.md and notebooks
+
+---
+
+## Notes
+- The system is now ready for robust, environment-aware, agentic workflows.
+- Pausing here for review and planning before next implementation sprint. 
