@@ -6,6 +6,8 @@ from .runner_agent import RunnerAgent
 from .health_agent import HealthAgent
 from .fixer_agent import FixerAgent
 from .port_manager_agent import PortManagerAgent
+from .file_agent import FileAgent
+from .config_agent import ConfigAgent
 import time
 import signal
 from typing import Dict, List, Any
@@ -517,13 +519,20 @@ class AutonomousServiceOrchestrator:
 
 # Enhanced Orchestrator
 class Orchestrator:
-    """Enhanced orchestrator with autonomous service management"""
+    """
+    Enhanced orchestrator with autonomous service management.
+    Demonstrates dynamic agent invocation: can instantiate and use any agent (FileAgent, ConfigAgent, etc.)
+    at any checkpoint, supporting agentic OOP interoperability.
+    """
     
     def __init__(self, timeout=300):
         self.timeout = timeout
         self.service_orchestrator = AutonomousServiceOrchestrator()
         self.detection_results = {}
         self.port_manager = None
+        # Example: instantiate agents for dynamic use
+        self.file_agent = FileAgent()
+        self.config_agent = ConfigAgent()
     
     def set_port_manager(self, port_manager):
         """Set the port manager for the orchestrator"""
@@ -551,6 +560,12 @@ class Orchestrator:
             
             # Set port manager for orchestrator
             self.set_port_manager(port_manager_agent.port_manager)
+            
+            # Example: dynamically create a .env file at a checkpoint
+            # (In real workflow, this could be triggered by requirements or detection)
+            env_vars = {'EXAMPLE_KEY': 'example_value'}
+            env_path = self.config_agent.create_env_file(env_vars, path=f"{repo_path}/.env")
+            print(f"[Orchestrator] Dynamically created .env at: {env_path}")
             
             # Phase 1: Repository Analysis
             print("\n🔄 Phase: Repository Analysis")
