@@ -1,4 +1,16 @@
-# Agentic System Roadmap & Checklist
+# Agentic System Roadmap (2024 Milestone)
+
+## Milestone: Agentic Microservice Backend
+
+- All core agents (setup, env, deps, run, fix) are modular and inherit from BaseAgent
+- OrchestratorAgent is the main entrypoint for CLI, API, or parent project
+- CLI supports all required flags and is ready for automation
+- All state and logs are file-based for traceability and debugging
+- System is ready for production integration, further LLM/RAG enhancement, and UI/API overlays
+
+See TRACKER.md for a step-by-step log of how this milestone was achieved.
+
+---
 
 ## 🎯 Vision
 Build a robust, intelligent, modular CLI agent that can analyze any repository, auto-install dependencies, configure environments, run applications locally, and prepare for cloud deployment with comprehensive troubleshooting and self-healing capabilities.

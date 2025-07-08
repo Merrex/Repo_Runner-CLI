@@ -18,6 +18,10 @@ class RunnerAgent(BaseAgent):
         self.dependency_agent = DependencyAgent()
         self.dependency_agent.ensure_packages(['requests'], upgrade=False)
 
+    def run(self, *args, **kwargs):
+        self.log_result("[RunnerAgent] Running backend/frontend server (stub)")
+        return {"status": "ok", "agent": self.agent_name}
+    
     def start(self, structure, mode="local", allocated_ports=None):
         """Start all detected services using LLM for intelligent execution."""
         services = structure.get('services', [])

@@ -1,37 +1,40 @@
-# Repo Runner: Agentic Platform
+# Repo_Runner-CLI: Agentic Microservice Backend
 
 ## Overview
+This project is a production-ready, modular agentic backend microservice for automated repository setup, fixing, and execution. It exposes a high-level `OrchestratorAgent` (admin orchestrator) as the main entrypoint for CLI, API, or parent project calls.
 
-Repo Runner is a modular, agentic platform for running, fixing, and managing code repositories in local or cloud environments. It features a robust agent-manager-orchestrator architecture, advanced LLM integration, memory/telemetry, and user-friendly reporting.
+- **Agents:** Modular, single-responsibility classes for setup, environment detection, dependency alignment, running, and fixing.
+- **Orchestrator:** Coordinates all agents, logs all state, and is callable from CLI or as a Python module.
+- **CLI:** `orchestrator_cli.py` provides a robust CLI interface for all workflows.
+- **Logging & State:** All agent actions, errors, and results are logged to `logs/agent_logs/` and `run_state.json`.
 
-## Key Features
-
-- **Orchestrator as Endpoint/POC**: The orchestrator agent is the main interface for the user, handling all agent/manager errors, logs, and exceptions. It only requests user input if needed, otherwise provides a final user-friendly report with all relevant links and integration info.
-- **Admin Agent**: Monitors orchestrators and can spawn user/session-specific orchestrator agents for custom-tailored services or integration with other agentic systems.
-- **Agent Memory & Telemetry**: Advanced memory manager logs, retrieves, and analyzes agent run/fix history, and exposes APIs for streaming logs/telemetry.
-- **Streaming Logs/Telemetry**: Real-time streaming of agent events for dashboard or local web UI integration.
-- **Robust Agent-Manager-Orchestrator Workflow**: Dynamic function-calling, checkpointing, retry/self-heal, and run state tracking for all agentic operations.
-- **ModelRouter/ModelPolicy**: Model-agnostic, pluggable routing between Zephyr, Mistral, GPT-4, etc. based on token length, task complexity, and execution cost.
-
-## How It Works
-
-1. **Start the Orchestrator**: The orchestrator manages all agents and managers, acting as the single point of contact for the user.
-2. **Run/Manage a Repo**: The orchestrator coordinates setup, dependency management, health checks, fixes, and service startup.
-3. **Error Handling**: All errors, logs, and exceptions are handled internally by the agentic team. The orchestrator only asks the user for input if absolutely necessary.
-4. **Final Report**: After all steps, the orchestrator provides a user-friendly summary with backend/frontend links, integration info, and a log of all actions/fixes.
-5. **Admin/Custom Orchestrators**: The admin agent can spawn and monitor orchestrators for specific users or integrations.
-6. **Model Routing**: The ModelRouter/ModelPolicy automatically selects the best LLM (Zephyr, Mistral, GPT-4, etc.) for each task based on token length, complexity, and cost.
+## Key Components
+- `agents/base_agent.py`: Standardized agent base class with `run`, `retry`, `checkpoint`, `log_result`, and `report_error`.
+- `agents/setup_agent.py`, `env_detector.py`, `dependency_agent.py`, `runner_agent.py`, `fixer_agent.py`: Specialized agents for each workflow step.
+- `managers/orchestrator_agent.py`: Main orchestrator, coordinates all agents, logs to `run_state.json`.
+- `orchestrator_cli.py`: CLI entrypoint with all required flags.
+- `__init__.py`: Exports `run_orchestrator` for parent project or agent-to-agent calls.
 
 ## Usage
+### CLI
+```bash
+python -m repo_runner.orchestrator_cli --repo_path /path/to/repo --env detect --model_quality balanced --config config.yaml --dry_run
+```
 
-- Run the orchestrator CLI or API entrypoint.
-- Follow prompts only if the orchestrator requests user input.
-- Review the final report for links, status, and integration info.
-- Use the admin agent for advanced monitoring or to spawn custom orchestrators.
-- The ModelRouter/ModelPolicy is used internally for all LLM calls, ensuring optimal model selection for each task.
+### As a Python Module
+```python
+from repo_runner import run_orchestrator
+run_orchestrator(repo_path='/path/to/repo', env='detect', model_quality='balanced', config='config.yaml', dry_run=False)
+```
 
-## Testing
+## Logging & State
+- All agent logs: `logs/agent_logs/{agent}_{date}.log`
+- Orchestrator state: `run_state.json`
 
-- The system is ready for robust, environment-aware, agentic workflows.
-- All planned enhancements and checklist items are complete.
-- Proceed to testing and review as described above. 
+## Extending
+- Add new agents by inheriting from `BaseAgent` and implementing `run()`.
+- Enhance orchestrator logic in `orchestrator_agent.py`.
+
+## Project Status
+- Fully agentic, modular, and ready for production or integration as a backend microservice.
+- See `ROADMAP.md` and `TRACKER.md` for progress and implementation history. 

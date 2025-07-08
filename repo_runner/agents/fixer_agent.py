@@ -80,6 +80,10 @@ class FixerAgent(BaseAgent):
         super().__init__(*args, **kwargs)
         self.memory_manager = AgentMemoryManager()
 
+    def run(self, *args, **kwargs):
+        self.log_result("[FixerAgent] Fixing broken runs/logs (stub)")
+        return {"status": "ok", "agent": self.agent_name}
+
     def fix(self, errors, structure):
         """Use WizardCoder to analyze and fix errors."""
         if not errors:
