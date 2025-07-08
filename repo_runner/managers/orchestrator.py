@@ -19,6 +19,7 @@ from pathlib import Path
 import json
 import yaml
 from .base_manager import BaseManager
+import networkx as nx
 
 class AutonomousServiceOrchestrator(BaseManager):
     """Fully autonomous service orchestrator with environment awareness"""
@@ -596,10 +597,14 @@ class Orchestrator(BaseManager):
     - Demonstrates how top-level agents coordinate and delegate to specialized agents for maximum flexibility.
     """
     
-    def __init__(self, timeout=300):
+    def __init__(self, timeout=300, env='detect', model_tier='balanced'):
         super().__init__()
         self.timeout = timeout
+        self.env = env
+        self.model_tier = model_tier
         self.service_orchestrator = AutonomousServiceOrchestrator()
+        if env != 'detect':
+            self.service_orchestrator.environment = env
         self.detection_results = {}
         self.port_manager = None
         # Example: instantiate agents for dynamic use
@@ -748,3 +753,17 @@ class Orchestrator(BaseManager):
         # Cleanup port manager tunnels
         if self.port_manager:
             self.port_manager.cleanup_tunnels()
+
+    def _save_agent_run_dag(self, agent_order):
+        """
+        Save agent run order and dependencies as a DAG in agent_run_dag.json
+        """
+        import json
+        import os
+        dag = {"nodes": [], "edges": []}
+        for i, agent in enumerate(agent_order):
+            dag["nodes"].append({"id": agent, "order": i})
+            if i > 0:
+                dag["edges"].append({"from": agent_order[i-1], "to": agent})
+        with open("agent_run_dag.json", "w") as f:
+            json.dump(dag, f, indent=2)

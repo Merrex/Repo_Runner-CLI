@@ -491,19 +491,35 @@ def _create_fallback_pipeline(agent_name: str):
         print(f"Fallback pipeline also failed: {e}")
         return None
 
-def generate_code_with_llm(prompt: str, agent_name: str = "default") -> str:
-    """Generate code using LLM with graceful fallback"""
-    
-    if not TRANSFORMERS_AVAILABLE:
-        # Fallback to simple rule-based generation
-        return generate_fallback_response(prompt, agent_name)
-    
+_MODEL_OUTPUT_CACHE = {}
+
+def generate_code_with_llm(prompt: str, agent_name: str = "default", fallback_policy: Tuple[str, ...] = ("premium", "gated", "free"), max_tokens: int = None, urgency: str = None, cost_limit: float = None) -> str:
+    """
+    Generate code or text using the best available LLM for the agent, using ModelRouter for routing and fallback.
+    - fallback_policy: tuple of model tiers to try in order (default: premium, gated, free)
+    - max_tokens, urgency, cost_limit: used for routing
+    - Uses a simple in-memory cache to avoid repeated API calls for identical prompts.
+    """
+    cache_key = (agent_name, prompt, max_tokens, urgency, cost_limit, fallback_policy)
+    if cache_key in _MODEL_OUTPUT_CACHE:
+        return _MODEL_OUTPUT_CACHE[cache_key]
+    router = ModelRouter()
+    task_type = agent_name  # For now, use agent_name as task_type
     try:
-        # Try to use transformers
-        return generate_with_transformers(prompt, agent_name)
+        result = router.route(
+            task_type=task_type,
+            prompt=prompt,
+            max_tokens=max_tokens or 1024,
+            cost_limit=cost_limit,
+            complexity=urgency
+        )
+        _MODEL_OUTPUT_CACHE[cache_key] = result
+        return result
     except Exception as e:
-        print(f"⚠️ LLM generation failed: {e}")
-        return generate_fallback_response(prompt, agent_name)
+        print(f"[LLM_ROUTER] Routing failed: {e}, falling back to cascading_llm_call.")
+        result = cascading_llm_call(prompt, agent_name, tiers=fallback_policy)
+        _MODEL_OUTPUT_CACHE[cache_key] = result
+        return result
 
 def generate_with_transformers(prompt: str, agent_name: str) -> str:
     """Generate using transformers (original implementation)"""

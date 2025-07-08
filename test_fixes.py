@@ -8,6 +8,8 @@ import sys
 import tempfile
 import shutil
 from pathlib import Path
+import pytest
+from repo_runner.agents.fixer_agent import FixerAgent
 
 # Add repo_runner to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -132,6 +134,27 @@ def test_service_detection():
     except Exception as e:
         print(f"❌ Service detection test failed: {e}")
         return False
+
+def test_fixer_agent_self_fix_and_logging(tmp_path):
+    agent = FixerAgent()
+    error = "pip install conflict: requirements.txt incompatible"
+    context = {"test": True}
+    # Use a temp run_state file
+    run_state_file = tmp_path / "run_state.json"
+    # Patch memory manager to use temp file
+    agent.memory_manager.memory_file = str(run_state_file)
+    # Call self_fix
+    result = agent.self_fix(error, context=context, run_state_file=str(run_state_file))
+    assert isinstance(result, dict)
+    # Check that log files are created
+    logs_dir = os.path.join("logs", "agent_logs")
+    reports_dir = os.path.join("reports")
+    assert os.path.isdir(logs_dir)
+    assert os.path.isdir(reports_dir)
+    log_files = os.listdir(logs_dir)
+    report_files = os.listdir(reports_dir)
+    assert any(f.endswith(".log") for f in log_files)
+    assert any(f.startswith("summary_") and f.endswith(".json") for f in report_files)
 
 def main():
     """Run all tests"""

@@ -117,17 +117,39 @@ def setup(ctx, path, skip_deps, skip_env, skip_db):
 @click.argument('repo_path', type=click.Path(exists=True))
 @click.option('--mode', default='local', help='Execution mode (local/cloud)')
 @click.option('--timeout', default=300, help='Timeout in seconds')
-def run(repo_path: str, mode: str, timeout: int):
+@click.option('--env', default='detect', help='Target environment (detect/aws/gcp/colab/local)')
+@click.option('--model', default='balanced', type=click.Choice(['premium', 'free', 'balanced']), help='Model tier (premium/free/balanced)')
+def run(repo_path: str, mode: str, timeout: int, env: str, model: str):
     """Run repo_runner on a repository."""
     from .managers.orchestrator import Orchestrator
-    
+    import json
+    import datetime
+
     print(f"🚀 Starting repo_runner in {mode} mode...")
     print(f"📂 Target repository: {repo_path}")
+    print(f"🌎 Environment: {env}")
+    print(f"🤖 Model tier: {model}")
     print("⏱️ This may take a few minutes for complex repositories...")
-    
-    orchestrator = Orchestrator(timeout=timeout)
+
+    orchestrator = Orchestrator(timeout=timeout, env=env, model_tier=model)
     result = orchestrator.run(repo_path, mode=mode)
-    
+
+    # Log checkpoint/result after run
+    checkpoint = {
+        'timestamp': datetime.datetime.now().isoformat(),
+        'repo_path': repo_path,
+        'mode': mode,
+        'env': env,
+        'model_tier': model,
+        'result': result
+    }
+    try:
+        with open('run_checkpoint.json', 'w') as f:
+            json.dump(checkpoint, f, indent=2)
+        print("📝 Run checkpoint saved to run_checkpoint.json")
+    except Exception as e:
+        print(f"⚠️ Failed to save run checkpoint: {e}")
+
     if result['status'] == 'success':
         print("✅ repo_runner completed successfully!")
     else:

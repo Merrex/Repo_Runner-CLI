@@ -403,3 +403,36 @@ class RunnerAgent(BaseAgent):
                 print(f"Failed to stop process {pid}: {e}")
         
         return {'stopped_processes': stopped} 
+
+    def report_error(self, error, context=None, error_file="runner_agent_errors.json"):
+        """
+        Log the error and optionally save it to a file for traceability.
+        """
+        import json
+        self.log(f"Error reported: {error} | Context: {context}", "error")
+        try:
+            error_record = {"error": str(error), "context": context}
+            if not os.path.exists(error_file):
+                with open(error_file, "w") as f:
+                    json.dump([error_record], f, indent=2)
+            else:
+                with open(error_file, "r+") as f:
+                    errors = json.load(f)
+                    errors.append(error_record)
+                    f.seek(0)
+                    json.dump(errors, f, indent=2)
+        except Exception as e:
+            self.log(f"Failed to save error report: {e}", "error")
+
+    def checkpoint(self, state: dict, checkpoint_file: str = "runner_agent_state.json"):
+        """
+        Save the runner agent's state to a checkpoint file (default: runner_agent_state.json).
+        Logs the checkpoint event.
+        """
+        import json
+        try:
+            with open(checkpoint_file, "w") as f:
+                json.dump(state, f, indent=2)
+            self.log(f"Checkpoint saved to {checkpoint_file}", "info")
+        except Exception as e:
+            self.log(f"Failed to save checkpoint: {e}", "error") 

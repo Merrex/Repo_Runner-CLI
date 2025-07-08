@@ -6,6 +6,7 @@ from pathlib import Path
 from ..llm.llm_utils import generate_code_with_llm
 from .dependency_agent import DependencyAgent
 from .base_agent import BaseAgent
+import os
 
 class HealthAgent(BaseAgent):
     """
@@ -355,3 +356,23 @@ class HealthAgent(BaseAgent):
             results['status'] = 'all_down'
             
         return results 
+
+    def report_error(self, error, context=None, error_file="health_agent_errors.json"):
+        """
+        Log the error and optionally save it to a file for traceability.
+        """
+        import json
+        self.log(f"Error reported: {error} | Context: {context}", "error")
+        try:
+            error_record = {"error": str(error), "context": context}
+            if not os.path.exists(error_file):
+                with open(error_file, "w") as f:
+                    json.dump([error_record], f, indent=2)
+            else:
+                with open(error_file, "r+") as f:
+                    errors = json.load(f)
+                    errors.append(error_record)
+                    f.seek(0)
+                    json.dump(errors, f, indent=2)
+        except Exception as e:
+            self.log(f"Failed to save error report: {e}", "error") 

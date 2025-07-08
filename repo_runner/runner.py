@@ -13,6 +13,31 @@ from typing import Dict, Any, Optional, List
 from .logger import get_logger
 
 
+def run_in_sandbox(cmd, cwd=None, env=None, description=None, allowed_env_vars=None):
+    """
+    Run a command in an isolated subprocess with filtered environment variables.
+    - allowed_env_vars: list of env var names to pass through (default: safe subset)
+    - Filters out secrets and sensitive variables.
+    - Optionally, could add seccomp/apparmor or user namespace restrictions (future).
+    """
+    import subprocess, os
+    import copy
+    import shlex
+    safe_env = copy.deepcopy(os.environ)
+    # Default: only pass through non-secret env vars
+    if allowed_env_vars is None:
+        allowed_env_vars = [k for k in safe_env if not any(s in k.lower() for s in ['secret', 'key', 'token', 'password', 'credential'])]
+    filtered_env = {k: safe_env[k] for k in allowed_env_vars if k in safe_env}
+    if env:
+        filtered_env.update({k: v for k, v in env.items() if k in allowed_env_vars})
+    try:
+        print(f"[SANDBOX] Running: {' '.join(cmd) if isinstance(cmd, list) else cmd}")
+        return subprocess.Popen(cmd if isinstance(cmd, list) else shlex.split(cmd), cwd=cwd, env=filtered_env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+    except Exception as e:
+        print(f"[SANDBOX ERROR] Failed to start process: {e}")
+        raise
+
+
 class ApplicationRunner:
     """Handles running applications based on detected structure."""
     
@@ -319,64 +344,40 @@ class ApplicationRunner:
         raise Exception("No suitable run method found")
     
     def _start_process(self, cmd: List[str], description: str):
-        """Start a process and add it to the process list."""
+        """Start a process in a security sandbox and add it to the process list."""
         self.logger.info(f"Starting {description}: {' '.join(cmd)}")
-        
         if self.dry_run:
             self.logger.info("DRY RUN: Process not started")
             return None
-        
         try:
-            process = subprocess.Popen(
-                cmd,
-                cwd=self.path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True
-            )
-            
+            process = run_in_sandbox(cmd, cwd=self.path)
             self.processes.append(process)
-            
-            # Wait a moment to check if process started successfully
             time.sleep(2)
-            
             if process.poll() is not None:
-                # Process has already terminated
                 stdout, stderr = process.communicate()
                 self.logger.error(f"Process failed to start: {stdout}")
                 raise Exception(f"Process failed to start: {stdout}")
-            
             self.logger.info(f"✅ {description} started successfully (PID: {process.pid})")
             return process
-            
         except Exception as e:
             self.logger.error(f"❌ Failed to start {description}: {e}")
             raise
-    
+
     def _run_command(self, cmd: List[str], description: str) -> bool:
-        """Run a command synchronously."""
+        """Run a command synchronously in a security sandbox."""
         self.logger.info(f"{description}: {' '.join(cmd)}")
-        
         if self.dry_run:
             self.logger.info("DRY RUN: Command not executed")
             return True
-        
         try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.path,
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
-            
-            if result.returncode == 0:
+            process = run_in_sandbox(cmd, cwd=self.path)
+            stdout, _ = process.communicate(timeout=300)
+            if process.returncode == 0:
                 self.logger.info(f"✅ {description} completed successfully")
                 return True
             else:
-                self.logger.error(f"❌ {description} failed: {result.stderr}")
+                self.logger.error(f"❌ {description} failed: {stdout}")
                 return False
-                
         except Exception as e:
             self.logger.error(f"❌ {description} failed: {e}")
             return False

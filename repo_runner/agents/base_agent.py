@@ -64,4 +64,43 @@ class BaseAgent:
         Logs the error and context, and returns False by default.
         """
         self.log(f"Self-fix not implemented for error: {error} | Context: {context}", "warning")
-        return False 
+        return False
+
+    def checkpoint(self, state: dict, checkpoint_file: str = "agent_state.json"):
+        """
+        Save the agent's state to a checkpoint file (default: agent_state.json).
+        Logs the checkpoint event. Can be overridden by subclasses for custom logic.
+        """
+        import json
+        try:
+            with open(checkpoint_file, "w") as f:
+                json.dump(state, f, indent=2)
+            self.log(f"Checkpoint saved to {checkpoint_file}", "info")
+        except Exception as e:
+            self.log(f"Failed to save checkpoint: {e}", "error")
+
+    def to_openai_function_schema(self):
+        """
+        Return a list of OpenAI function-calling schemas for all public agent methods.
+        """
+        import inspect
+        schemas = []
+        for name, method in inspect.getmembers(self, predicate=inspect.ismethod):
+            if not name.startswith('_') and name not in ('log', 'retry', 'self_fix', 'get_function_registry', 'checkpoint', 'report_error', 'to_openai_function_schema'):
+                sig = inspect.signature(method)
+                params = []
+                for param in sig.parameters.values():
+                    if param.name == 'self':
+                        continue
+                    param_schema = {
+                        "name": param.name,
+                        "type": "string",  # For simplicity, treat all as string
+                        "description": str(param.annotation) if param.annotation != inspect._empty else ""
+                    }
+                    params.append(param_schema)
+                schemas.append({
+                    "name": name,
+                    "description": method.__doc__ or "",
+                    "parameters": params
+                })
+        return schemas 

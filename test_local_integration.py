@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+import pytest
 
 # Add the project to Python path
 project_path = os.path.join(os.getcwd(), 'project')
@@ -328,6 +329,25 @@ def test_cli_integration():
             shutil.rmtree(test_repo_path)
         except Exception as e:
             print(f"⚠️ Cleanup failed: {e}")
+
+def test_orchestrator_cli_run(tmp_path):
+    repo_path = "."  # Use current directory for smoke test
+    run_checkpoint = "run_checkpoint.json"
+    # Remove old checkpoint if exists
+    if os.path.exists(run_checkpoint):
+        os.remove(run_checkpoint)
+    # Run the CLI command
+    result = subprocess.run([
+        "python3", "-m", "repo_runner.cli", "run", repo_path, "--env", "detect", "--model", "free"
+    ], capture_output=True, text=True)
+    # Check that the command ran and produced a checkpoint
+    assert os.path.exists(run_checkpoint)
+    with open(run_checkpoint) as f:
+        data = f.read()
+        assert "repo_path" in data
+        assert "result" in data
+    # Optionally check CLI output
+    assert "repo_runner" in result.stdout or "repo_runner" in result.stderr
 
 if __name__ == "__main__":
     print("🚀 Starting Local Integration Tests")

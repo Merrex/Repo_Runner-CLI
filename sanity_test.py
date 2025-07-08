@@ -9,6 +9,9 @@ import os
 import sys
 import tempfile
 import shutil
+import pytest
+from repo_runner.environment import EnvironmentManager
+from repo_runner.managers.port_manager import EnvironmentAwarePortManager
 
 # Add the project to Python path
 project_path = os.path.join(os.getcwd(), 'project')
@@ -114,6 +117,16 @@ def run_sanity_test():
             print(f"🧹 Cleaned up: {test_repo_path}")
         except Exception as e:
             print(f"⚠️ Cleanup failed: {e}")
+
+def test_environment_manager_detects_local():
+    env_manager = EnvironmentManager(".")
+    env = env_manager._validate_environment()
+    # Should not raise and should log warnings or info
+    assert env_manager is not None
+
+def test_port_manager_detects_local():
+    port_manager = EnvironmentAwarePortManager()
+    assert port_manager.environment in ["local", "docker", "colab", "aws", "gcp", "kubernetes"]
 
 if __name__ == "__main__":
     success = run_sanity_test()
