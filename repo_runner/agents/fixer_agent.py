@@ -80,9 +80,30 @@ class FixerAgent(BaseAgent):
         super().__init__(*args, **kwargs)
         self.memory_manager = AgentMemoryManager()
 
-    def run(self, *args, **kwargs):
-        self.log_result("[FixerAgent] Fixing broken runs/logs (stub)")
-        return {"status": "ok", "agent": self.agent_name}
+    def run(self, repo_path=None, errors=None, context=None, *args, **kwargs):
+        # Analyze errors and suggest fixes
+        suggestions = []
+        actions = []
+        if not errors:
+            self.log_result("[FixerAgent] No errors to fix.")
+            return {"status": "ok", "agent": self.agent_name, "suggestions": [], "actions": []}
+        for err in errors:
+            suggestion = self._suggest_fix(err, repo_path)
+            suggestions.append(suggestion)
+            action = self._apply_fix(suggestion, repo_path)
+            actions.append(action)
+        self.log_result(f"[FixerAgent] Suggestions: {suggestions}, Actions: {actions}")
+        return {"status": "ok", "agent": self.agent_name, "suggestions": suggestions, "actions": actions}
+
+    def _suggest_fix(self, error, repo_path):
+        # Stub: Use LLM or RAG to suggest fix
+        # In production, call LLM or RAG here
+        return f"Suggested fix for: {error[:100]}"
+
+    def _apply_fix(self, suggestion, repo_path):
+        # Stub: Optionally apply fix
+        # In production, parse suggestion and apply code change
+        return f"Applied: {suggestion}"
 
     def fix(self, errors, structure):
         """Use WizardCoder to analyze and fix errors."""

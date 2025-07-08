@@ -18,9 +18,92 @@ class RunnerAgent(BaseAgent):
         self.dependency_agent = DependencyAgent()
         self.dependency_agent.ensure_packages(['requests'], upgrade=False)
 
-    def run(self, *args, **kwargs):
-        self.log_result("[RunnerAgent] Running backend/frontend server (stub)")
-        return {"status": "ok", "agent": self.agent_name}
+    def run(self, repo_path=None, env=None, config=None, *args, **kwargs):
+        summary = {}
+        # Python backend
+        backend_entry = self._find_python_entry(repo_path)
+        if backend_entry:
+            summary['python'] = self._run_python_app(backend_entry, repo_path)
+        # Node.js backend
+        node_entry = self._find_node_entry(repo_path)
+        if node_entry:
+            summary['node'] = self._run_node_app(node_entry, repo_path)
+        # Frontend (React/Vue/Next.js)
+        frontend_entry = self._find_frontend_entry(repo_path)
+        if frontend_entry:
+            summary['frontend'] = self._run_frontend_app(frontend_entry, repo_path)
+        self.log_result(f"[RunnerAgent] Run summary: {summary}")
+        return {"status": "ok", "agent": self.agent_name, "summary": summary}
+
+    def _find_python_entry(self, repo_path):
+        # Look for main.py, app.py, manage.py (Django)
+        for fname in ['main.py', 'app.py', 'manage.py']:
+            fpath = os.path.join(repo_path or '.', fname)
+            if os.path.exists(fpath):
+                return fpath
+        return None
+
+    def _run_python_app(self, entry, repo_path):
+        try:
+            if entry.endswith('manage.py'):
+                cmd = ['python', 'manage.py', 'runserver', '0.0.0.0:8000']
+                url = 'http://localhost:8000'
+            else:
+                cmd = ['python', os.path.basename(entry)]
+                url = 'http://localhost:5000'
+            proc = subprocess.Popen(cmd, cwd=repo_path or '.', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return {"cmd": cmd, "pid": proc.pid, "url": url}
+        except Exception as e:
+            self.report_error(e)
+            return {"error": str(e)}
+
+    def _find_node_entry(self, repo_path):
+        # Look for index.js, server.js
+        for fname in ['index.js', 'server.js']:
+            fpath = os.path.join(repo_path or '.', fname)
+            if os.path.exists(fpath):
+                return fpath
+        return None
+
+    def _run_node_app(self, entry, repo_path):
+        try:
+            cmd = ['node', os.path.basename(entry)]
+            url = 'http://localhost:3000'
+            proc = subprocess.Popen(cmd, cwd=repo_path or '.', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return {"cmd": cmd, "pid": proc.pid, "url": url}
+        except Exception as e:
+            self.report_error(e)
+            return {"error": str(e)}
+
+    def _find_frontend_entry(self, repo_path):
+        # Look for package.json with react, vue, next, etc.
+        pkg_path = os.path.join(repo_path or '.', 'package.json')
+        if os.path.exists(pkg_path):
+            try:
+                import json
+                with open(pkg_path) as f:
+                    pkg = json.load(f)
+                deps = pkg.get('dependencies', {})
+                if any(fr in deps for fr in ['react', 'vue', 'next']):
+                    return pkg_path
+            except Exception:
+                pass
+        return None
+
+    def _run_frontend_app(self, pkg_path, repo_path):
+        try:
+            # Try npm start or npm run dev
+            for cmd in [['npm', 'start'], ['npm', 'run', 'dev']]:
+                try:
+                    proc = subprocess.Popen(cmd, cwd=repo_path or '.', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    url = 'http://localhost:3000'
+                    return {"cmd": cmd, "pid": proc.pid, "url": url}
+                except Exception:
+                    continue
+            return {"error": "Could not start frontend app"}
+        except Exception as e:
+            self.report_error(e)
+            return {"error": str(e)}
     
     def start(self, structure, mode="local", allocated_ports=None):
         """Start all detected services using LLM for intelligent execution."""

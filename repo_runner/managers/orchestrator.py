@@ -20,6 +20,7 @@ import json
 import yaml
 from .base_manager import BaseManager
 import networkx as nx
+from repo_runner.agents.env_detector import EnvDetectorAgent
 
 class AutonomousServiceOrchestrator(BaseManager):
     """Fully autonomous service orchestrator with environment awareness"""
@@ -767,3 +768,58 @@ class Orchestrator(BaseManager):
                 dag["edges"].append({"from": agent_order[i-1], "to": agent})
         with open("agent_run_dag.json", "w") as f:
             json.dump(dag, f, indent=2)
+
+class OrchestratorAgent:
+    def __init__(self, repo_path=None, env=None, config=None):
+        self.repo_path = repo_path or '.'
+        self.env = env
+        self.config = config
+        self.state_file = os.path.join(self.repo_path, 'run_state.json')
+        self.log = []
+
+    def run(self):
+        run_summary = {}
+        errors = []
+        # 1. Detect environment
+        env_agent = EnvDetectorAgent()
+        env_result = env_agent.run(repo_path=self.repo_path)
+        run_summary['env'] = env_result
+        if env_result.get('error'):
+            errors.append(env_result['error'])
+        # 2. Align/fix dependencies
+        dep_agent = DependencyAgent()
+        dep_result = dep_agent.run(repo_path=self.repo_path, env=env_result)
+        run_summary['dependencies'] = dep_result
+        if dep_result.get('error'):
+            errors.append(dep_result['error'])
+        # 3. Setup/install
+        setup_agent = SetupAgent()
+        setup_result = setup_agent.run(repo_path=self.repo_path, env=env_result, config=self.config)
+        run_summary['setup'] = setup_result
+        if setup_result.get('error'):
+            errors.append(setup_result['error'])
+        # 4. Run backend/frontend
+        runner_agent = RunnerAgent()
+        runner_result = runner_agent.run(repo_path=self.repo_path, env=env_result, config=self.config)
+        run_summary['run'] = runner_result
+        if runner_result.get('error'):
+            errors.append(runner_result['error'])
+        # 5. Fix errors if any
+        fixer_agent = FixerAgent()
+        fixer_result = fixer_agent.run(repo_path=self.repo_path, errors=errors, context=run_summary)
+        run_summary['fixes'] = fixer_result
+        # Log and checkpoint
+        self._log_and_checkpoint(run_summary)
+        return run_summary
+
+    def _log_and_checkpoint(self, run_summary):
+        entry = {
+            'timestamp': time.time(),
+            'summary': run_summary
+        }
+        self.log.append(entry)
+        try:
+            with open(self.state_file, 'w') as f:
+                json.dump(entry, f, indent=2)
+        except Exception as e:
+            print(f"[OrchestratorAgent] Failed to write run_state.json: {e}")
