@@ -230,7 +230,7 @@ class FixerAgent(BaseAgent):
     
     def build_context_index(self, repo_path: str):
         """
-        Build a FAISS index from .env, README.md, requirements.txt, and logs/error.log in the repo.
+        Build a simple text index from .env, README.md, requirements.txt, and logs/error.log in the repo.
         """
         files = [
             os.path.join(repo_path, f) for f in ['.env', 'README.md', 'requirements.txt']
@@ -243,13 +243,13 @@ class FixerAgent(BaseAgent):
 
     def retrieve_context(self, query: str, top_k: int = 3) -> str:
         """
-        Retrieve top-k relevant context chunks for a given query using the FAISS index.
+        Retrieve top-k relevant context chunks for a given query using the text index.
         """
-        if hasattr(self, 'context_indexer') and self.context_indexer.index is not None:
+        if hasattr(self, 'context_indexer') and self.context_indexer.text_chunks:
             try:
                 return '\n'.join(self.context_indexer.query_index(query, top_k=top_k))
             except Exception as e:
-                self.log(f"Context retrieval failed: {e}", "warning")
+                self.log_result(f"Context retrieval failed: {e}")
         return ""
     
     def self_fix(self, error, context=None, run_state_file="run_state.json", repo_path=None):
@@ -276,7 +276,7 @@ class FixerAgent(BaseAgent):
                 self.build_context_index(repo_path)
                 rag_context = self.retrieve_context(str(error), top_k=3)
             except Exception as e:
-                self.log(f"RAG context indexing failed: {e}", "warning")
+                self.log_result(f"RAG context indexing failed: {e}")
         prompt = f"""
         You are a FixerAgent. Use the following past fixes as few-shot examples:
         {few_shot_context}
@@ -296,7 +296,7 @@ class FixerAgent(BaseAgent):
         llm_response = generate_code_with_llm(prompt, agent_name='fixer_agent')
         try:
             fix_data = json.loads(llm_response)
-            self.log(f"Self-fix applied: {fix_data.get('fix','')}", "info")
+            self.log_result(f"Self-fix applied: {fix_data.get('fix','')}")
             # Log fix event
             event = {
                 "timestamp": datetime.datetime.now().isoformat(),
@@ -310,12 +310,12 @@ class FixerAgent(BaseAgent):
             self._log_to_files(event)
             return fix_data
         except Exception:
-            self.log(f"Self-fix LLM response could not be parsed: {llm_response}", "warning")
+            self.log_result(f"Self-fix LLM response could not be parsed: {llm_response}")
             # Fallback: try exception registry
             import re
             for key, entry in self.EXCEPTION_REGISTRY.items():
                 if re.search(entry['pattern'], str(error), re.IGNORECASE):
-                    self.log(f"Using exception registry template for {key}", "info")
+                    self.log_result(f"Using exception registry template for {key}")
                     event = {
                         "timestamp": datetime.datetime.now().isoformat(),
                         "type": "fix_attempt",
@@ -334,20 +334,20 @@ class FixerAgent(BaseAgent):
         Logs the checkpoint event.
         """
         import json
-        self.log(f"Checkpointing FixerAgent state to {checkpoint_file}", "info")
+        self.log_result(f"Checkpointing FixerAgent state to {checkpoint_file}")
         try:
             with open(checkpoint_file, "w") as f:
                 json.dump(state, f, indent=2)
-            self.log(f"Checkpoint saved to {checkpoint_file}", "info")
+            self.log_result(f"Checkpoint saved to {checkpoint_file}")
         except Exception as e:
-            self.log(f"Failed to save checkpoint: {e}", "error")
+            self.log_result(f"Failed to save checkpoint: {e}")
 
     def report_error(self, error, context=None, error_file="fixer_agent_errors.json"):
         """
         Log the error and optionally save it to a file for traceability.
         """
         import json
-        self.log(f"Error reported: {error} | Context: {context}", "error")
+        self.log_result(f"Error reported: {error} | Context: {context}", "error")
         try:
             error_record = {"error": str(error), "context": context}
             if not os.path.exists(error_file):
@@ -360,7 +360,7 @@ class FixerAgent(BaseAgent):
                     f.seek(0)
                     json.dump(errors, f, indent=2)
         except Exception as e:
-            self.log(f"Failed to save error report: {e}", "error")
+            self.log_result(f"Failed to save error report: {e}", "error")
     
     def _fix_missing_python_dependency(self, repo_path, package):
         """Fix missing Python dependency."""
@@ -531,4 +531,4 @@ class FixerAgent(BaseAgent):
             with open(report_path, "w") as f:
                 json.dump(event, f, indent=2)
         except Exception as e:
-            self.log(f"Failed to write telemetry logs: {e}", "warning") 
+            self.log_result(f"Failed to write telemetry logs: {e}", "warning") 

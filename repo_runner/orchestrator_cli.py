@@ -1,6 +1,6 @@
 import click
 import json
-from repo_runner.managers.orchestrator_agent import OrchestratorAgent
+from repo_runner.managers.orchestrator import OrchestratorAgent
 
 @click.command()
 @click.option('--repo_path', required=True, type=click.Path(exists=True), help='Path to the target repo')

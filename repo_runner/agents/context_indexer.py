@@ -1,13 +1,11 @@
 import os
-import faiss
 from typing import List, Tuple
-from sentence_transformers import SentenceTransformer
+import re
 
 class ContextIndexer:
-    def __init__(self, model_name: str = 'all-MiniLM-L6-v2'):
-        self.model = SentenceTransformer(model_name)
-        self.index = None
+    def __init__(self):
         self.text_chunks = []
+        self.index = None
 
     def _read_files(self, file_paths: List[str]) -> List[Tuple[str, str]]:
         """
@@ -16,38 +14,45 @@ class ContextIndexer:
         chunks = []
         for path in file_paths:
             if os.path.exists(path):
-                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                    # Split into lines or paragraphs for context granularity
-                    for i, para in enumerate(content.split('\n\n')):
-                        if para.strip():
-                            chunks.append((f"{os.path.basename(path)}:{i}", para.strip()))
+                try:
+                    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                        # Split into lines or paragraphs for context granularity
+                        for i, para in enumerate(content.split('\n\n')):
+                            if para.strip():
+                                chunks.append((f"{os.path.basename(path)}:{i}", para.strip()))
+                except Exception as e:
+                    print(f"Warning: Could not read {path}: {e}")
         return chunks
 
     def build_index(self, file_paths: List[str]):
         """
-        Build a FAISS index from the given files.
+        Build a simple text-based index from the given files.
         """
         self.text_chunks = self._read_files(file_paths)
         if not self.text_chunks:
-            raise ValueError("No content to index.")
-        texts = [chunk[1] for chunk in self.text_chunks]
-        embeddings = self.model.encode(texts, show_progress_bar=False)
-        dim = embeddings.shape[1]
-        self.index = faiss.IndexFlatL2(dim)
-        self.index.add(embeddings)
+            print("Warning: No content to index.")
+            return
+        print(f"Indexed {len(self.text_chunks)} text chunks")
 
     def query_index(self, query: str, top_k: int = 3) -> List[str]:
         """
-        Query the FAISS index for top_k relevant chunks.
+        Query the index for top_k relevant chunks using simple text matching.
         """
-        if self.index is None or not self.text_chunks:
-            raise ValueError("Index not built.")
-        query_emb = self.model.encode([query])
-        D, I = self.index.search(query_emb, top_k)
-        return [self.text_chunks[i][1] for i in I[0] if i < len(self.text_chunks)]
-
-# Example usage:
-# indexer = ContextIndexer()
-# indexer.build_index(['.env', 'README.md', 'requirements.txt', 'logs/error.log'])
-# context = indexer.query_index('ModuleNotFoundError') 
+        if not self.text_chunks:
+            return []
+        
+        # Simple keyword-based search
+        query_words = set(re.findall(r'\w+', query.lower()))
+        scored_chunks = []
+        
+        for chunk_id, chunk_text in self.text_chunks:
+            chunk_words = set(re.findall(r'\w+', chunk_text.lower()))
+            # Calculate simple overlap score
+            overlap = len(query_words.intersection(chunk_words))
+            if overlap > 0:
+                scored_chunks.append((overlap, chunk_text))
+        
+        # Sort by score and return top_k
+        scored_chunks.sort(reverse=True)
+        return [chunk for score, chunk in scored_chunks[:top_k]] 
