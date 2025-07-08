@@ -1,7 +1,7 @@
 import os
 import json
 import subprocess
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, List
 import re
 import sys
 from ..config_manager import config_manager
@@ -647,3 +647,145 @@ def analyze_with_llm(content: str, agent_name: str = 'default') -> Dict[str, Any
             'agent': agent_name,
             'model_type': 'universal'
         } 
+
+def compress_logs(log_text: str, max_length: int = 1024) -> str:
+    """
+    Compress logs or error messages using summarization if available, else truncate.
+    Uses a small summarization model if transformers is available, else falls back to truncation.
+    """
+    try:
+        from transformers import pipeline
+        summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+        if len(log_text) > max_length:
+            summary = summarizer(log_text, max_length=max_length//4, min_length=max_length//8, do_sample=False)
+            return summary[0]['summary_text']
+        return log_text
+    except Exception:
+        # Fallback: truncate
+        return log_text[:max_length] + ("..." if len(log_text) > max_length else "")
+
+
+def cascading_llm_call(prompt: str, agent_name: str, tiers: Tuple[str, ...] = ("free", "gated", "premium"), compress_logs: bool = True) -> str:
+    """
+    Robust LLM call with model cascading and prompt compression.
+    - Tries models in order of tiers: free → gated → premium.
+    - Compresses logs/errors if over max_input_length.
+    - Returns first successful response or fallback message.
+    - For local/Colab, prefers free models due to VRAM constraints.
+    Usage:
+        response = cascading_llm_call(prompt, "fixer_agent")
+    """
+    # Get configs for all tiers
+    configs = []
+    for tier in tiers:
+        if tier == "free":
+            configs.append(DEFAULT_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG["detection_agent"]))
+        elif tier == "gated":
+            configs.append(GATED_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG["detection_agent"]))
+        elif tier == "premium":
+            configs.append(PREMIUM_MODEL_CONFIG.get(agent_name, DEFAULT_MODEL_CONFIG["detection_agent"]))
+    last_error = None
+    for config in configs:
+        try:
+            max_input_length = config.get("max_input_length", 2048)
+            _prompt = prompt
+            if compress_logs and len(_prompt) > max_input_length:
+                _prompt = compress_logs(_prompt, max_length=max_input_length)
+            # Try to get pipeline for this config
+            model_name = config["model_name"]
+            model_type = config.get("type", "public")
+            # For local/Colab, skip large models if low VRAM
+            if model_type in ("gated", "public") and os.environ.get("COLAB_GPU") is not None:
+                # Colab: skip >2B models if VRAM < 12GB
+                if "7B" in model_name or "13B" in model_name:
+                    continue
+            pipe = get_llm_pipeline(agent_name)
+            if pipe is None:
+                continue
+            # Call the model
+            if hasattr(pipe, "__call__"):
+                result = pipe(_prompt, max_length=config.get("max_tokens", 512), temperature=config.get("temperature", 0.2))
+                if isinstance(result, list) and result and "generated_text" in result[0]:
+                    return result[0]["generated_text"]
+                elif isinstance(result, str):
+                    return result
+            else:
+                # Fallback: try generate_code_with_llm
+                return generate_code_with_llm(_prompt, agent_name)
+        except Exception as e:
+            last_error = e
+            continue
+    # If all fail, fallback
+    return f"[LLM cascade failed: {last_error}]" 
+
+class ModelRouter:
+    """
+    ModelRouter for dynamic, pluggable model selection.
+    Routes between Zephyr, Mistral, GPT-4, etc. based on:
+    - Token length
+    - Task complexity
+    - Execution cost (credits/time)
+    Usage:
+        router = ModelRouter()
+        model_info = router.route(task_type, prompt, max_tokens, cost_limit)
+    """
+    def __init__(self, model_configs=None):
+        # Use existing configs or allow custom
+        self.model_configs = model_configs or {
+            'zephyr': {
+                'name': 'HuggingFaceH4/zephyr-1.3b', 'max_tokens': 4096, 'cost': 0, 'complexity': 'low', 'tier': 'gated'
+            },
+            'mistral': {
+                'name': 'mistralai/Mistral-7B-Instruct-v0.2', 'max_tokens': 8192, 'cost': 0, 'complexity': 'medium', 'tier': 'gated'
+            },
+            'wizardcoder': {
+                'name': 'WizardLM/WizardCoder-1B-V1.0', 'max_tokens': 6144, 'cost': 0, 'complexity': 'medium', 'tier': 'gated'
+            },
+            'gpt-4': {
+                'name': 'gpt-4', 'max_tokens': 8192, 'cost': 1, 'complexity': 'high', 'tier': 'premium'
+            },
+            'gpt-3.5-turbo': {
+                'name': 'gpt-3.5-turbo', 'max_tokens': 4096, 'cost': 0.2, 'complexity': 'medium', 'tier': 'premium'
+            },
+            'dialo-medium': {
+                'name': 'microsoft/DialoGPT-medium', 'max_tokens': 2048, 'cost': 0, 'complexity': 'low', 'tier': 'free'
+            },
+        }
+
+    def route(self, task_type: str, prompt: str, max_tokens: int = 1024, cost_limit: float = None, complexity: str = None):
+        """
+        Select the best model based on routing policy.
+        Args:
+            task_type: e.g. 'code', 'chat', 'summarize', etc.
+            prompt: the input prompt
+            max_tokens: required output length
+            cost_limit: max allowed cost (credits/time)
+            complexity: 'low', 'medium', 'high' (optional, can be inferred)
+        Returns:
+            model_info dict
+        """
+        # Infer complexity if not provided
+        if complexity is None:
+            complexity = self.infer_complexity(task_type, prompt)
+        # Filter models by complexity and token length
+        candidates = [m for m in self.model_configs.values()
+                      if m['max_tokens'] >= max_tokens and m['complexity'] in (complexity, 'medium', 'high')]
+        # Filter by cost if specified
+        if cost_limit is not None:
+            candidates = [m for m in candidates if m['cost'] <= cost_limit]
+        # Prefer lowest cost, then lowest tier
+        candidates = sorted(candidates, key=lambda m: (m['cost'], m['tier']))
+        return candidates[0] if candidates else self.model_configs['dialo-medium']
+
+    def infer_complexity(self, task_type: str, prompt: str) -> str:
+        # Simple heuristic: can be extended
+        if task_type in ('code', 'fix', 'analyze') or len(prompt) > 2000:
+            return 'high'
+        elif task_type in ('summarize', 'chat') or len(prompt) > 1000:
+            return 'medium'
+        else:
+            return 'low'
+
+# Usage:
+# router = ModelRouter()
+# model_info = router.route('code', prompt, max_tokens=2048, cost_limit=0.5) 

@@ -520,6 +520,71 @@ class AutonomousServiceOrchestrator(BaseManager):
             except Exception as e:
                 print(f"❌ Failed to stop {service_name}: {e}")
 
+    def run_checkpointed_step(self, agent, function_name, *args, checkpoint_file="agent_state.json", **kwargs):
+        """
+        Run an agent function by name, save input/output/error to checkpoint after execution.
+        Loads previous state, appends this step, and saves updated state.
+        """
+        state = self.load_checkpoint(checkpoint_file)
+        step_record = {
+            "agent": agent.__class__.__name__,
+            "function": function_name,
+            "args": args,
+            "kwargs": kwargs,
+            "result": None,
+            "error": None
+        }
+        try:
+            registry = agent.get_function_registry()
+            result = registry[function_name](*args, **kwargs)
+            step_record["result"] = result
+        except Exception as e:
+            step_record["error"] = str(e)
+        # Append to state history
+        if "history" not in state:
+            state["history"] = []
+        state["history"].append(step_record)
+        self.save_checkpoint(state, checkpoint_file)
+        return step_record
+
+    def run_checkpointed_step_with_retry(self, agent, function_name, *args, max_retries=3, checkpoint_file="agent_state.json", run_state_file="run_state.json", fixer_agent=None, **kwargs):
+        """
+        Run an agent function by name with retry and self-heal. On failure, use FixerAgent to attempt a fix and retry.
+        Log all attempts, errors, and fixes in run_state.json. Orchestrator acts as POC for user interaction.
+        """
+        run_state = self.load_checkpoint(run_state_file)
+        if "attempts" not in run_state:
+            run_state["attempts"] = []
+        attempt = 0
+        last_error = None
+        while attempt < max_retries:
+            step_record = self.run_checkpointed_step(agent, function_name, *args, checkpoint_file=checkpoint_file, **kwargs)
+            run_state["attempts"].append(step_record)
+            self.save_checkpoint(run_state, run_state_file)
+            if not step_record["error"]:
+                return step_record  # Success
+            last_error = step_record["error"]
+            # Try self-heal with FixerAgent if provided
+            if fixer_agent is not None:
+                fix_result = fixer_agent.self_fix(last_error, context={"agent": agent.__class__.__name__, "function": function_name, "args": args, "kwargs": kwargs})
+                run_state.setdefault("fixes", []).append({
+                    "error": last_error,
+                    "fix_result": fix_result,
+                    "attempt": attempt + 1
+                })
+                self.save_checkpoint(run_state, run_state_file)
+            attempt += 1
+        # If all retries fail, orchestrator prepares a user-friendly message
+        run_state.setdefault("final_status", {})[function_name] = {
+            "status": "failed",
+            "error": last_error,
+            "agent": agent.__class__.__name__,
+            "args": args,
+            "kwargs": kwargs
+        }
+        self.save_checkpoint(run_state, run_state_file)
+        return {"error": last_error, "status": "failed", "agent": agent.__class__.__name__, "function": function_name}
+
 # Enhanced Orchestrator
 class Orchestrator(BaseManager):
     """
