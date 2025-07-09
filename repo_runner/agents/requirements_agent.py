@@ -5,6 +5,35 @@ from .base_agent import BaseAgent
 import os
 
 class RequirementsAgent(BaseAgent):
+    def run(self, *args, **kwargs):
+        """Analyze project requirements and dependencies"""
+        detection_result = kwargs.get('detection_result', {})
+        
+        try:
+            # Use the existing requirements logic
+            requirements_result = self.ensure_requirements(detection_result)
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "requirements": requirements_result,
+                "missing_files": requirements_result.get('missing_files', []),
+                "generated_files": requirements_result.get('generated_files', [])
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
+
     def ensure_requirements(self, structure):
         """Ensure requirements/config files exist and are correct using LLM."""
         files = structure.get('files', {})

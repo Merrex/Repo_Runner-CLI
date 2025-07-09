@@ -6,6 +6,37 @@ from ..llm.llm_utils import generate_code_with_llm
 from .base_agent import BaseAgent
 
 class DBAgent(BaseAgent):
+    def run(self, *args, **kwargs):
+        """Setup and configure database connections"""
+        repo_path = kwargs.get('repo_path', '.')
+        
+        try:
+            # Check for database configuration files
+            db_configs = self._find_db_configs(repo_path)
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "database": {
+                    "configs": db_configs,
+                    "db_count": len(db_configs),
+                    "databases": list(db_configs.keys())
+                }
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
+
     def setup(self, structure):
         """Detect and set up the database using LLM."""
         files = structure.get('files', {})

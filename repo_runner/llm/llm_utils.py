@@ -5,6 +5,10 @@ from typing import Dict, Any, Optional, Tuple, List
 import re
 import sys
 from ..config_manager import config_manager
+import sys
+import subprocess
+from typing import Optional
+from repo_runner.agents.dependency_agent import DependencyAgent
 
 # === UNIVERSAL MODEL CONFIGURATION ===
 # Supports public, gated, and paid models with proper authentication
@@ -805,3 +809,95 @@ class ModelRouter:
 # Usage:
 # router = ModelRouter()
 # model_info = router.route('code', prompt, max_tokens=2048, cost_limit=0.5) 
+
+# Instantiate dependency agent for environment-aware package management
+_dependency_agent = DependencyAgent()
+
+def ensure_llm_dependencies():
+    """
+    Ensure LLM dependencies are available using environment-aware dependency matrix.
+    """
+    try:
+        # Use the dependency agent to ensure packages with correct versions
+        required_packages = ['transformers', 'torch', 'requests']
+        success = _dependency_agent.ensure_packages(required_packages, upgrade=False)
+        
+        if success:
+            print("✅ LLM dependencies ensured with environment-aware versions")
+        else:
+            print("⚠️ Some LLM dependencies failed to install")
+            
+    except Exception as e:
+        print(f"⚠️ Dependency installation failed: {e}")
+        print("🔄 Falling back to basic functionality")
+
+def generate_code_with_llm(prompt: str, agent_name: str = 'default') -> str:
+    """
+    Generate code using LLM with environment-aware fallbacks.
+    """
+    try:
+        # Ensure dependencies are available
+        ensure_llm_dependencies()
+        
+        # Try to use transformers pipeline
+        from transformers import pipeline
+        generator = pipeline('text-generation', model='microsoft/DialoGPT-medium')
+        response = generator(prompt, max_length=200, num_return_sequences=1)
+        return response[0]['generated_text']
+    except ImportError:
+        print("⚠️ transformers not available - using fallback")
+        return f"LLM Response (fallback): {prompt[:100]}..."
+    except Exception as e:
+        print(f"⚠️ LLM generation failed: {e}")
+        return f"Error in LLM generation: {str(e)}"
+
+# Centralized model config for all agents
+MODEL_CONFIGS = {
+    'detection_agent': {
+        'free': 'microsoft/DialoGPT-medium',
+        'advanced': 'gpt-3.5-turbo',
+        'premium': 'gpt-4',
+    },
+    'requirements_agent': {
+        'free': 'microsoft/DialoGPT-medium',
+        'advanced': 'gpt-3.5-turbo',
+        'premium': 'gpt-4',
+    },
+    'setup_agent': {
+        'free': 'microsoft/DialoGPT-medium',
+        'advanced': 'gpt-3.5-turbo',
+        'premium': 'gpt-4',
+    },
+    'fixer_agent': {
+        'free': 'microsoft/DialoGPT-medium',
+        'advanced': 'gpt-3.5-turbo',
+        'premium': 'gpt-4',
+    },
+    'db_agent': {
+        'free': 'microsoft/DialoGPT-medium',
+        'advanced': 'gpt-3.5-turbo',
+        'premium': 'gpt-4',
+    },
+    'health_agent': {
+        'free': 'microsoft/DialoGPT-small',
+        'advanced': 'gpt-3.5-turbo',
+        'premium': 'gpt-4',
+    },
+    'runner_agent': {
+        'free': 'microsoft/DialoGPT-medium',
+        'advanced': 'gpt-3.5-turbo',
+        'premium': 'gpt-4',
+    },
+}
+
+def get_model_for_agent(agent_name, tier_order=('premium', 'advanced', 'free')):
+    """
+    Get the best available model for an agent, trying tiers in order (premium, advanced, free).
+    Returns model name string, or None if not found.
+    """
+    config = MODEL_CONFIGS.get(agent_name, {})
+    for tier in tier_order:
+        model = config.get(tier)
+        if model:
+            return model
+    return None 

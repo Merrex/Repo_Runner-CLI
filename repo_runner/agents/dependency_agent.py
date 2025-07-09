@@ -1,89 +1,175 @@
 import subprocess
 import sys
-import importlib
-from typing import List, Optional
-from .base_agent import BaseAgent
-import json
 import os
+from .base_agent import BaseAgent
+
+# Cloud Environment Dependency Matrix
+CLOUD_DEPENDENCY_MATRIX = {
+    "colab": {
+        "torch": "2.7.1",  # Colab's pre-installed version
+        "torchvision": "0.22.0",
+        "torchaudio": "2.7.1",
+        "transformers": "4.53.1",  # Colab's pre-installed version
+        "accelerate": "1.8.1",
+        "numpy": "2.3.1",
+        "requests": "2.32.4"
+    },
+    "aws": {
+        "torch": "2.6.0",  # AWS Lambda/EC2 compatible
+        "torchvision": "0.21.0",
+        "torchaudio": "2.6.0",
+        "transformers": "4.50.0",
+        "accelerate": "1.7.0",
+        "numpy": "2.0.0",
+        "requests": "2.31.0"
+    },
+    "gcp": {
+        "torch": "2.6.0",  # GCP AI Platform compatible
+        "torchvision": "0.21.0",
+        "torchaudio": "2.6.0",
+        "transformers": "4.50.0",
+        "accelerate": "1.7.0",
+        "numpy": "2.0.0",
+        "requests": "2.31.0"
+    },
+    "local": {
+        "torch": "latest",  # Use latest stable
+        "torchvision": "latest",
+        "torchaudio": "latest",
+        "transformers": "latest",
+        "accelerate": "latest",
+        "numpy": "latest",
+        "requests": "latest"
+    }
+}
 
 class DependencyAgent(BaseAgent):
-    """
-    Agent responsible for checking, installing, and upgrading Python packages and system binaries.
-    Designed for agentic, reusable dependency management. Can be called by orchestrator or any agent.
-    """
-    def check_package(self, package: str, import_name: Optional[str] = None) -> bool:
-        """
-        Check if a Python package is installed (optionally by import name).
-        Returns True if import succeeds, False otherwise.
-        """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.environment = self._detect_environment()
+        self.dependency_matrix = CLOUD_DEPENDENCY_MATRIX.get(self.environment, CLOUD_DEPENDENCY_MATRIX["local"])
+
+    def _detect_environment(self):
+        """Detect the current cloud environment"""
+        if 'COLAB_GPU' in os.environ or 'COLAB_TPU' in os.environ:
+            return 'colab'
+        elif 'AWS_EXECUTION_ENV' in os.environ:
+            return 'aws'
+        elif 'GOOGLE_CLOUD_PROJECT' in os.environ:
+            return 'gcp'
+        else:
+            return 'local'
+
+    def _check_faiss_dependencies(self):
+        """Check if FAISS dependencies are available or can be installed"""
         try:
-            import_name = import_name or package
-            importlib.import_module(import_name)
-            return True
+            # Check if faiss is already installed
+            import faiss
+            faiss_available = True
         except ImportError:
+            faiss_available = False
+        
+        try:
+            # Check if sentence-transformers is available
+            from sentence_transformers import SentenceTransformer
+            sentence_transformers_available = True
+        except ImportError:
+            sentence_transformers_available = False
+        
+        return {
+            "faiss_available": faiss_available,
+            "sentence_transformers_available": sentence_transformers_available,
+            "can_install_faiss": self._can_install_package("faiss-cpu"),
+            "can_install_sentence_transformers": self._can_install_package("sentence-transformers")
+        }
+
+    def _can_install_package(self, package):
+        """Check if a package can be installed"""
+        try:
+            result = subprocess.run([sys.executable, '-m', 'pip', 'show', package], 
+                                  capture_output=True, text=True)
+            return result.returncode == 0
+        except:
             return False
 
-    def install_package(self, package: str, upgrade: bool = False) -> bool:
-        """
-        Install (or upgrade) a Python package using pip. Returns True if successful.
-        """
+    def _generate_faiss_recommendations(self):
+        """Generate FAISS recommendations based on dependency analysis"""
+        faiss_status = self._check_faiss_dependencies()
+        
+        if faiss_status["faiss_available"] and faiss_status["sentence_transformers_available"]:
+            return {
+                "recommend_faiss": True,
+                "reason": "FAISS and sentence-transformers are already available",
+                "sentence_transformer_model": "all-MiniLM-L6-v2"
+            }
+        elif faiss_status["can_install_faiss"] and faiss_status["can_install_sentence_transformers"]:
+            return {
+                "recommend_faiss": True,
+                "reason": "FAISS dependencies can be installed",
+                "sentence_transformer_model": "all-MiniLM-L6-v2"
+            }
+        else:
+            return {
+                "recommend_faiss": False,
+                "reason": "FAISS dependencies not available and cannot be installed",
+                "sentence_transformer_model": None
+            }
+
+    def ensure_packages(self, packages, upgrade=False):
+        """Ensure packages are installed with environment-aware versions"""
+        print(f"🔧 Ensuring packages for {self.environment} environment...")
+        
+        for package in packages:
+            if package in self.dependency_matrix:
+                version = self.dependency_matrix[package]
+                if version == "latest":
+                    self._install_package(package, upgrade=upgrade)
+                else:
+                    self._install_package_version(package, version)
+            else:
+                # Package not in matrix, install latest
+                self._install_package(package, upgrade=upgrade)
+        
+        return True
+
+    def _install_package(self, package, upgrade=False):
+        """Install a package with optional upgrade"""
         try:
-            cmd = [sys.executable, '-m', 'pip', 'install', package]
+            cmd = [sys.executable, '-m', 'pip', 'install']
             if upgrade:
                 cmd.append('--upgrade')
-            subprocess.check_call(cmd)
-            return True
-        except Exception as e:
-            print(f"❌ Failed to install {package}: {e}")
-            return False
-
-    def ensure_packages(self, packages: List[str], upgrade: bool = False) -> bool:
-        """
-        Ensure a list of packages are installed. Installs any that are missing.
-        Returns True if all are present after this call.
-        """
-        all_ok = True
-        for pkg in packages:
-            if not self.check_package(pkg):
-                print(f"⚠️ {pkg} not available - attempting to install...")
-                if not self.install_package(pkg, upgrade=upgrade):
-                    all_ok = False
-        return all_ok
-
-    def check_binary(self, binary: str) -> bool:
-        """
-        Check if a system binary is available in PATH.
-        """
-        from shutil import which
-        return which(binary) is not None
-
-    def install_pyngrok(self) -> bool:
-        """
-        Ensure pyngrok and ngrok binary are installed.
-        """
-        if not self.check_package('pyngrok'):
-            print("⚠️ pyngrok not available - attempting to install...")
-            if not self.install_package('pyngrok'):
+            cmd.append(package)
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"✅ {package} installed successfully")
+                return True
+            else:
+                print(f"⚠️ Failed to install {package}: {result.stderr}")
                 return False
-        # pyngrok should install ngrok binary automatically
-        try:
-            from pyngrok import ngrok
-            ngrok_version = ngrok.get_ngrok_version()
-            print(f"✅ pyngrok/ngrok available: {ngrok_version}")
-            return True
         except Exception as e:
-            print(f"❌ pyngrok/ngrok not working: {e}")
+            print(f"❌ Error installing {package}: {e}")
             return False
 
-    def checkpoint(self, state: dict = None):
-        state = state or self.context
-        checkpoint_file = self.state_file
+    def _install_package_version(self, package, version):
+        """Install a specific version of a package"""
         try:
-            with open(checkpoint_file, "w") as f:
-                json.dump(state, f, indent=2)
-            self.log_result(f"Checkpoint saved to {checkpoint_file}")
+            cmd = [sys.executable, '-m', 'pip', 'install', f"{package}=={version}"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"✅ {package}=={version} installed successfully")
+                return True
+            else:
+                print(f"⚠️ Failed to install {package}=={version}: {result.stderr}")
+                # Fallback to latest
+                return self._install_package(package)
         except Exception as e:
-            self.report_error(f"Failed to save checkpoint: {e}")
+            print(f"❌ Error installing {package}=={version}: {e}")
+            return self._install_package(package)
+
+    def install_pyngrok(self):
+        """Install pyngrok for tunnel management"""
+        return self._install_package('pyngrok')
 
     def report_error(self, error, context=None, error_file="dependency_agent_errors.json"):
         import json
@@ -102,29 +188,52 @@ class DependencyAgent(BaseAgent):
         except Exception as e:
             self.log_result(f"Failed to save error report: {e}", "error")
 
-    def run(self, repo_path=None, env=None, config=None, *args, **kwargs):
-        # 1. Check for requirements.txt (pip)
-        req_path = os.path.join(repo_path or '.', 'requirements.txt')
-        pip_result = None
-        if os.path.exists(req_path):
-            pip_result = self._install_pip_requirements(req_path)
-        # 2. Check for environment.yml (conda)
-        conda_path = os.path.join(repo_path or '.', 'environment.yml')
-        conda_result = None
-        if os.path.exists(conda_path):
-            conda_result = self._install_conda_env(conda_path)
-        # 3. Check for apt.txt (apt)
-        apt_path = os.path.join(repo_path or '.', 'apt.txt')
-        apt_result = None
-        if os.path.exists(apt_path):
-            apt_result = self._install_apt_packages(apt_path)
-        summary = {
-            "pip": pip_result,
-            "conda": conda_result,
-            "apt": apt_result
-        }
-        self.log_result(f"[DependencyAgent] Dependency alignment summary: {summary}")
-        return {"status": "ok", "agent": self.agent_name, "summary": summary}
+    def run(self, *args, **kwargs):
+        """Manage dependencies with environment-aware versions"""
+        detection_result = kwargs.get('detection_result', {})
+        environment = kwargs.get('environment', 'local')
+        
+        try:
+            # Use the existing dependency logic
+            dependency_result = self.ensure_dependencies(detection_result, environment)
+            
+            # Add FAISS recommendations for local environment
+            recommendations = {}
+            if environment == 'local':
+                try:
+                    import psutil
+                    ram_gb = psutil.virtual_memory().total / (1024**3)
+                    if ram_gb >= 4.0:
+                        recommendations['recommend_faiss'] = True
+                        recommendations['reason'] = f"Local environment has {ram_gb:.1f}GB RAM, sufficient for FAISS"
+                        recommendations['sentence_transformer_model'] = 'all-MiniLM-L6-v2'
+                    else:
+                        recommendations['recommend_faiss'] = False
+                        recommendations['reason'] = f"Local environment has {ram_gb:.1f}GB RAM, insufficient for FAISS"
+                except ImportError:
+                    recommendations['recommend_faiss'] = False
+                    recommendations['reason'] = "Cannot determine RAM, defaulting to simple search"
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "dependencies": dependency_result,
+                "environment": environment,
+                "recommendations": recommendations
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
 
     def _install_pip_requirements(self, req_path):
         try:

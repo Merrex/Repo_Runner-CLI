@@ -3,7 +3,7 @@ from .file_agent import FileAgent
 from typing import Dict, Optional
 import os
 
-class ConfigAgent(FileAgent, BaseAgent):
+class ConfigAgent(BaseAgent):
     """
     Agent responsible for creating and updating configuration files (ngrok config, .env, etc.)
     
@@ -13,6 +13,38 @@ class ConfigAgent(FileAgent, BaseAgent):
     - Can be used by any agent (PortManagerAgent, OrchestratorAgent, etc.) for config file creation.
     - Supports agentic interoperability and dynamic invocation at any checkpoint.
     """
+    def run(self, *args, **kwargs):
+        """Process and manage configuration files"""
+        repo_path = kwargs.get('repo_path', '.')
+        
+        try:
+            # Process configuration files
+            config_files = self._find_config_files(repo_path)
+            env_vars = self._extract_env_vars(repo_path)
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "config": {
+                    "config_files": config_files,
+                    "env_vars": env_vars,
+                    "config_count": len(config_files)
+                }
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
+
     def create_ngrok_config(self, authtoken: str, tunnels: Dict[str, int], config_path: Optional[str] = None) -> str:
         """
         Create an ngrok config file for multiplexing tunnels.

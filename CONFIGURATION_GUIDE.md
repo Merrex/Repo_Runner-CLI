@@ -1,347 +1,445 @@
-# 🔧 Universal Configuration Guide
+# Configuration Guide
 
-## Overview
+## 🎯 Overview
 
-This guide explains how to configure **all tokens, API keys, and settings** for the repo_runner tool in one centralized location.
+This guide covers all configuration options for the Repo Runner system, including CLI parameters, environment variables, and tier-based feature access.
 
-## 🚀 Quick Setup
+## 🚀 Quick Start
 
-### 1. Create Configuration Template
-
+### Basic Usage
 ```bash
-# Generate .env template with all possible settings
-repo_runner config
+# Run with default settings (free tier)
+python -m repo_runner.cli --repo_path /path/to/repo
+
+# Run with authentication
+python -m repo_runner.cli --login --username your_user --password your_pass --repo_path /path/to/repo
 ```
 
-### 2. Edit Your Configuration
-
+### Admin Setup (First Time)
 ```bash
-# Edit the template with your actual tokens
-nano .env.template
+# Register as admin (only one admin allowed)
+python -m repo_runner.cli --register --username admin --password your_secure_password --tier admin
 
-# Rename to .env
-mv .env.template .env
+# Login as admin
+python -m repo_runner.cli --login --username admin --password your_secure_password
 ```
 
-### 3. Check Configuration Status
+## 📋 CLI Parameters
 
+### Core Parameters
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `--repo_path` | string | required | Path to the repository to analyze |
+| `--env` | string | "detect" | Environment: detect, colab, aws, gcp, local |
+| `--model` | string | "balanced" | Model tier: free, balanced, premium |
+
+### Authentication Parameters
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `--login` | flag | Login with username/password |
+| `--register` | flag | Register new user |
+| `--username` | string | Username for authentication |
+| `--password` | string | Password for authentication |
+| `--tier` | string | User tier: free, advanced, premium, tester, admin |
+
+### FAISS Configuration
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `--use_faiss` | boolean | null | Force FAISS usage (Advanced/Premium only) |
+| `--sentence_transformer_model` | string | "all-MiniLM-L6-v2" | Sentence transformer model |
+
+### Workflow Control
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `--skip_agents` | list | [] | Agents to skip (comma-separated) |
+| `--log_level` | string | "INFO" | Logging level |
+
+### Admin Commands
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `--list_users` | flag | List all users (Admin only) |
+| `--upgrade_user` | string | Username to upgrade (Admin only) |
+| `--new_tier` | string | New tier for user upgrade (Admin only) |
+| `--block_user` | string | Username to block (Admin only) |
+| `--unblock_user` | string | Username to unblock (Admin only) |
+| `--delete_user` | string | Username to delete (Admin only) |
+| `--usage` | flag | Show usage statistics |
+
+## 👥 User Tiers & Capabilities
+
+### Tier Comparison
+| Feature | Free | Advanced | Premium | Tester | Admin |
+|---------|------|----------|---------|--------|-------|
+| **Context Indexer** | Simple Text | FAISS | Chroma | FAISS | Chroma |
+| **GPU Access** | ❌ | Small | Large | Medium | Large |
+| **Rate Limit** | 10/hour | 50/hour | 200/hour | 100/hour | 1000/hour |
+| **Max Repos** | 3 | 10 | 100 | 50 | 1000 |
+| **Support** | Community | Email | Priority | Internal | Admin |
+| **User Management** | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+### Tier-Specific Features
+
+#### Free Tier
+- Simple text-based context search
+- No GPU access
+- Basic rate limiting (10 requests/hour)
+- Community support
+- Maximum 3 repositories
+
+#### Advanced Tier
+- FAISS context indexing (if recommended by agents)
+- Small GPU access
+- Moderate rate limiting (50 requests/hour)
+- Email support
+- Maximum 10 repositories
+
+#### Premium Tier
+- Chroma context indexing (best available)
+- Large GPU access
+- High rate limiting (200 requests/hour)
+- Priority support
+- Maximum 100 repositories
+
+#### Tester Tier
+- FAISS context indexing (always available)
+- Medium GPU access
+- High rate limiting (100 requests/hour)
+- Internal support
+- Maximum 50 repositories
+
+#### Admin Tier
+- Chroma context indexing (best available)
+- Large GPU access
+- Unlimited rate limiting (1000 requests/hour)
+- Admin support
+- Maximum 1000 repositories
+- User management capabilities
+
+## 🔧 Environment Variables
+
+### API Keys
 ```bash
-# Verify your configuration
-repo_runner status
+# OpenAI API Key
+export OPENAI_API_KEY=your_openai_api_key
+
+# Anthropic API Key
+export ANTHROPIC_API_KEY=your_anthropic_api_key
 ```
 
-## 📋 Configuration Categories
+### GPU Configuration
+```bash
+# CUDA Device Selection (for Premium/Admin tiers)
+export CUDA_VISIBLE_DEVICES=0
 
-### 🤖 LLM Model Configuration
-
-**Free Models (Default)**
-```env
-# All agents use free models by default
-DETECTION_AGENT_MODEL_TYPE=default
-REQUIREMENTS_AGENT_MODEL_TYPE=default
-SETUP_AGENT_MODEL_TYPE=default
-FIXER_AGENT_MODEL_TYPE=default
-DB_AGENT_MODEL_TYPE=default
-HEALTH_AGENT_MODEL_TYPE=default
-RUNNER_AGENT_MODEL_TYPE=default
+# GPU Memory Configuration
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
 ```
 
-**Advanced Models (Free Token Required)**
-```env
-# Use gated models with Hugging Face token
-DETECTION_AGENT_MODEL_TYPE=gated
-DETECTION_MODEL=mistralai/Mistral-7B-Instruct-v0.2
-DETECTION_TOKEN=hf_your_token_here
+### System Configuration
+```bash
+# Logging Level
+export LOG_LEVEL=INFO
 
-REQUIREMENTS_AGENT_MODEL_TYPE=gated
-REQUIREMENTS_MODEL=mistralai/Mistral-7B-Instruct-v0.2
-REQUIREMENTS_TOKEN=hf_your_token_here
+# Checkpoint Directory
+export CHECKPOINT_DIR=./checkpoints
+
+# User Database Path
+export USER_DB_PATH=./users.json
 ```
 
-**Premium Models (Paid API Required)**
-```env
-# Use OpenAI models with API key
-DETECTION_AGENT_MODEL_TYPE=premium
-DETECTION_MODEL=gpt-3.5-turbo
-OPENAI_API_KEY=sk-your_key_here
+## 📁 Configuration Files
 
-REQUIREMENTS_AGENT_MODEL_TYPE=premium
-REQUIREMENTS_MODEL=gpt-4
+### User Configuration (users.json)
+```json
+{
+  "users": {
+    "admin": {
+      "password_hash": "sha256_hash_of_password",
+      "tier": "admin",
+      "created_at": "2024-01-01T00:00:00Z",
+      "last_login": "2024-01-01T12:00:00Z",
+      "requests_count": 0,
+      "repos_created": 0,
+      "is_blocked": false
+    }
+  },
+  "admin_exists": true
+}
 ```
 
-### 🔑 API Keys
-
-**OpenAI**
-```env
-OPENAI_API_KEY=sk-your_openai_key_here
-OPENAI_ORG_ID=org-your_org_id_here
+### Run State Configuration (run_state.json)
+```json
+{
+  "repo_path": "/path/to/repo",
+  "environment": "colab",
+  "model_tier": "premium",
+  "faiss_config": {
+    "use_faiss": true,
+    "sentence_transformer_model": "all-MiniLM-L6-v2"
+  },
+  "skip_agents": [],
+  "current_phase": "setup",
+  "start_time": "2024-01-01T00:00:00Z",
+  "user": "premium_user"
+}
 ```
 
-**Anthropic**
-```env
-ANTHROPIC_API_KEY=sk-ant-your_anthropic_key_here
+### Agent State Configuration (agent_state_*.json)
+```json
+{
+  "agent_name": "EnvDetectorAgent",
+  "status": "completed",
+  "result": {
+    "environment": "colab",
+    "capabilities": ["gpu", "faiss"],
+    "faiss_recommendation": true
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}
 ```
 
-**Google**
-```env
-GOOGLE_API_KEY=your_google_api_key_here
-GOOGLE_PROJECT_ID=your_project_id_here
+## 🎛️ Advanced Configuration
+
+### FAISS Configuration
+```python
+# Force FAISS usage (Advanced/Premium only)
+faiss_config = {
+    "use_faiss": True,  # or False, or None for agent recommendation
+    "sentence_transformer_model": "all-MiniLM-L6-v2",
+    "index_type": "flat",  # or "ivf", "hnsw"
+    "dimension": 384
+}
 ```
 
-**Hugging Face**
-```env
-HF_TOKEN=hf_your_token_here
+### Agent Configuration
+```python
+# Skip specific agents
+skip_agents = ["HealthAgent", "FixerAgent"]
+
+# Agent-specific configuration
+agent_config = {
+    "EnvDetectorAgent": {
+        "detection_timeout": 30,
+        "environment_checks": ["colab", "aws", "gcp", "local"]
+    },
+    "DependencyAgent": {
+        "package_manager": "pip",
+        "update_existing": True
+    }
+}
 ```
 
-### 🔌 Third Party Integrations
-
-**Ngrok (Required for Colab/Cloud)**
-```env
-# Get free token: https://dashboard.ngrok.com/get-started/your-authtoken
-NGROK_AUTH_TOKEN=your_ngrok_token_here
-NGROK_REGION=us
-NGROK_DOMAIN=your_custom_domain.ngrok.io
+### Rate Limiting Configuration
+```python
+# Tier-based rate limits
+rate_limits = {
+    "free": {"requests_per_hour": 10, "repos_limit": 3},
+    "advanced": {"requests_per_hour": 50, "repos_limit": 10},
+    "premium": {"requests_per_hour": 200, "repos_limit": 100},
+    "tester": {"requests_per_hour": 100, "repos_limit": 50},
+    "admin": {"requests_per_hour": 1000, "repos_limit": 1000}
+}
 ```
 
-**Cloudflare**
-```env
-CLOUDFLARE_API_TOKEN=your_cloudflare_token_here
-CLOUDFLARE_ZONE_ID=your_zone_id_here
+## 🔐 Security Configuration
+
+### Password Security
+```python
+# Password hashing configuration
+import hashlib
+import os
+
+def hash_password(password):
+    salt = os.urandom(32)
+    hash_obj = hashlib.sha256()
+    hash_obj.update(salt + password.encode())
+    return salt.hex() + hash_obj.hexdigest()
+
+def verify_password(password, hashed):
+    salt = bytes.fromhex(hashed[:64])
+    hash_obj = hashlib.sha256()
+    hash_obj.update(salt + password.encode())
+    return hashed[64:] == hash_obj.hexdigest()
 ```
 
-**Docker Hub**
-```env
-DOCKERHUB_USERNAME=your_username
-DOCKERHUB_PASSWORD=your_password
-DOCKERHUB_TOKEN=your_token_here
+### Access Control
+```python
+# Tier-based feature access
+def check_feature_access(user_tier, feature):
+    access_matrix = {
+        "simple_search": ["free", "advanced", "premium", "tester", "admin"],
+        "faiss_search": ["advanced", "premium", "tester", "admin"],
+        "chroma_search": ["premium", "admin"],
+        "gpu_access": ["advanced", "premium", "tester", "admin"],
+        "user_management": ["admin"]
+    }
+    return user_tier in access_matrix.get(feature, [])
 ```
 
-**Cloud Providers**
-```env
-# AWS
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_REGION=us-east-1
+## 📊 Monitoring Configuration
 
-# Google Cloud
-GOOGLE_CLOUD_PROJECT=your_project_id
-GOOGLE_SERVICE_ACCOUNT_KEY=your_service_account_key
-
-# Azure
-AZURE_SUBSCRIPTION_ID=your_subscription_id
-AZURE_TENANT_ID=your_tenant_id
-AZURE_CLIENT_ID=your_client_id
-AZURE_CLIENT_SECRET=your_client_secret
+### Usage Tracking
+```python
+# Usage metrics configuration
+usage_config = {
+    "track_requests": True,
+    "track_repos": True,
+    "track_agents": True,
+    "track_gpu_usage": True,
+    "retention_days": 30
+}
 ```
 
-### 🌍 Environment Settings
+### Logging Configuration
+```python
+# Logging setup
+import logging
 
-```env
-# Execution mode
-REPO_RUNNER_MODE=local  # or 'cloud'
-
-# Debug and logging
-REPO_RUNNER_DEBUG=false
-REPO_RUNNER_LOG_LEVEL=INFO
-
-# Performance
-REPO_RUNNER_TIMEOUT=300
-REPO_RUNNER_MAX_WORKERS=4
+logging_config = {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "handlers": [
+        {"type": "file", "filename": "repo_runner.log"},
+        {"type": "console"}
+    ]
+}
 ```
-
-### 🔌 Port Management
-
-```env
-# Port configuration
-DEFAULT_START_PORT=3000
-PORT_RANGE=100
-ENABLE_NGROK=true
-ENABLE_CLOUDFLARE=false
-HEALTH_CHECK_TIMEOUT=30
-```
-
-## 🎯 Common Use Cases
-
-### 1. **Local Development (Minimal Setup)**
-
-```env
-# Just the basics - everything else uses defaults
-REPO_RUNNER_MODE=local
-REPO_RUNNER_DEBUG=true
-```
-
-### 2. **Colab/Cloud Environment**
-
-```env
-# Required for cloud environments
-NGROK_AUTH_TOKEN=your_ngrok_token_here
-REPO_RUNNER_MODE=cloud
-
-# Optional: Use better models
-DETECTION_AGENT_MODEL_TYPE=gated
-DETECTION_TOKEN=hf_your_token_here
-```
-
-### 3. **Production with Premium Models**
-
-```env
-# Use OpenAI for best performance
-DETECTION_AGENT_MODEL_TYPE=premium
-REQUIREMENTS_AGENT_MODEL_TYPE=premium
-SETUP_AGENT_MODEL_TYPE=premium
-OPENAI_API_KEY=sk-your_key_here
-
-# Production settings
-REPO_RUNNER_MODE=local
-REPO_RUNNER_DEBUG=false
-REPO_RUNNER_TIMEOUT=600
-```
-
-### 4. **Advanced Development**
-
-```env
-# Use gated models for better performance
-DETECTION_AGENT_MODEL_TYPE=gated
-REQUIREMENTS_AGENT_MODEL_TYPE=gated
-SETUP_AGENT_MODEL_TYPE=gated
-HF_TOKEN=hf_your_token_here
-
-# Ngrok for external access
-NGROK_AUTH_TOKEN=your_ngrok_token_here
-
-# Debug mode
-REPO_RUNNER_DEBUG=true
-REPO_RUNNER_LOG_LEVEL=DEBUG
-```
-
-## 🔧 Getting Tokens
-
-### **Ngrok Token (Free)**
-1. Go to: https://dashboard.ngrok.com/signup
-2. Create free account
-3. Get token: https://dashboard.ngrok.com/get-started/your-authtoken
-4. Add to `.env`: `NGROK_AUTH_TOKEN=your_token`
-
-### **Hugging Face Token (Free)**
-1. Go to: https://huggingface.co/join
-2. Create free account
-3. Get token: https://huggingface.co/settings/tokens
-4. Add to `.env`: `HF_TOKEN=hf_your_token`
-
-### **OpenAI API Key (Paid)**
-1. Go to: https://platform.openai.com/api-keys
-2. Create API key
-3. Add to `.env`: `OPENAI_API_KEY=sk-your_key`
-
-### **Anthropic API Key (Paid)**
-1. Go to: https://console.anthropic.com/
-2. Create API key
-3. Add to `.env`: `ANTHROPIC_API_KEY=sk-ant-your_key`
 
 ## 🧪 Testing Configuration
 
-### **Test All Models**
+### Test Environment
 ```bash
-repo_runner test_models
+# Test configuration
+export TEST_MODE=true
+export TEST_USER_TIER=admin
+export TEST_REPO_PATH=/tmp/test_repo
+export TEST_SKIP_AGENTS=HealthAgent,FixerAgent
 ```
 
-### **Check Configuration Status**
-```bash
-repo_runner status
+### Colab Testing
+```python
+# Colab-specific configuration
+colab_config = {
+    "use_gpu": True,
+    "faiss_available": True,
+    "memory_limit": "12GB",
+    "timeout": 300
+}
 ```
 
-### **Validate Configuration**
-```bash
-repo_runner config
+## 🔄 Environment-Specific Configuration
+
+### Colab Environment
+```python
+# Colab-specific settings
+if environment == "colab":
+    config.update({
+        "gpu_enabled": True,
+        "faiss_recommended": True,
+        "memory_optimized": True,
+        "timeout_extended": True
+    })
+```
+
+### AWS Environment
+```python
+# AWS-specific settings
+if environment == "aws":
+    config.update({
+        "gpu_enabled": True,
+        "faiss_recommended": True,
+        "scalable": True,
+        "monitoring": True
+    })
+```
+
+### Local Environment
+```python
+# Local-specific settings
+if environment == "local":
+    config.update({
+        "gpu_enabled": False,
+        "faiss_recommended": False,
+        "debug_mode": True,
+        "local_development": True
+    })
 ```
 
 ## 🚨 Troubleshooting
 
-### **"Ngrok authentication failed"**
+### Common Issues
+
+#### Authentication Issues
 ```bash
-# Add your ngrok token to .env
-echo "NGROK_AUTH_TOKEN=your_token_here" >> .env
+# Reset admin password
+python -m repo_runner.cli --reset_admin --new_password new_password
+
+# Check user status
+python -m repo_runner.cli --login --username admin --password admin_pass --list_users
 ```
 
-### **"Model not available"**
+#### FAISS Issues
 ```bash
-# Use free models instead
-export DETECTION_AGENT_MODEL_TYPE=default
-export REQUIREMENTS_AGENT_MODEL_TYPE=default
+# Force simple text search
+python -m repo_runner.cli --repo_path /path/to/repo --use_faiss false
+
+# Check FAISS availability
+python -c "import faiss; print('FAISS available')"
 ```
 
-### **"API key required"**
+#### GPU Issues
 ```bash
-# Add your API key to .env
-echo "OPENAI_API_KEY=sk-your_key_here" >> .env
+# Check GPU availability
+python -c "import torch; print(torch.cuda.is_available())"
+
+# Disable GPU
+export CUDA_VISIBLE_DEVICES=""
 ```
 
-### **"Token not found"**
+#### Rate Limiting Issues
 ```bash
-# Get free Hugging Face token
-# https://huggingface.co/settings/tokens
-echo "HF_TOKEN=hf_your_token_here" >> .env
+# Check usage
+python -m repo_runner.cli --login --username your_user --password your_pass --usage
+
+# Upgrade tier (admin only)
+python -m repo_runner.cli --login --username admin --password admin_pass --upgrade_user user1 --new_tier premium
 ```
 
-## 📝 Example .env File
+## 📚 Examples
 
-```env
-# ========================================
-# repo_runner Configuration
-# ========================================
+### Basic Repository Analysis
+```bash
+# Analyze a Python repository
+python -m repo_runner.cli --repo_path /path/to/python/repo --env detect --model balanced
 
-# === LLM Models ===
-DETECTION_AGENT_MODEL_TYPE=default
-REQUIREMENTS_AGENT_MODEL_TYPE=default
-SETUP_AGENT_MODEL_TYPE=default
-FIXER_AGENT_MODEL_TYPE=default
-DB_AGENT_MODEL_TYPE=default
-HEALTH_AGENT_MODEL_TYPE=default
-RUNNER_AGENT_MODEL_TYPE=default
-
-# === API Keys ===
-# OPENAI_API_KEY=sk-your_key_here
-# ANTHROPIC_API_KEY=sk-ant-your_key_here
-# HF_TOKEN=hf_your_token_here
-
-# === Integrations ===
-NGROK_AUTH_TOKEN=your_ngrok_token_here
-NGROK_REGION=us
-
-# === Environment ===
-REPO_RUNNER_MODE=local
-REPO_RUNNER_DEBUG=false
-REPO_RUNNER_TIMEOUT=300
-
-# === Ports ===
-DEFAULT_START_PORT=3000
-ENABLE_NGROK=true
+# Analyze with specific environment
+python -m repo_runner.cli --repo_path /path/to/repo --env colab --model premium
 ```
 
-## 🎯 Best Practices
+### Advanced Usage
+```bash
+# Skip specific agents
+python -m repo_runner.cli --repo_path /path/to/repo --skip_agents HealthAgent,FixerAgent
 
-### **Security**
-- Never commit `.env` files to version control
-- Use environment variables in production
-- Rotate tokens regularly
+# Force FAISS (Advanced/Premium only)
+python -m repo_runner.cli --repo_path /path/to/repo --use_faiss true
 
-### **Performance**
-- Use `default` models for testing
-- Use `gated` models for development
-- Use `premium` models for production
+# Custom sentence transformer model
+python -m repo_runner.cli --repo_path /path/to/repo --sentence_transformer_model all-mpnet-base-v2
+```
 
-### **Cost Optimization**
-- Start with free models
-- Use gated models for better performance
-- Use premium models only when needed
+### Admin Operations
+```bash
+# List all users
+python -m repo_runner.cli --login --username admin --password admin_pass --list_users
 
-## 📞 Support
+# Upgrade user to premium
+python -m repo_runner.cli --login --username admin --password admin_pass --upgrade_user user1 --new_tier premium
 
-If you encounter issues:
+# Block problematic user
+python -m repo_runner.cli --login --username admin --password admin_pass --block_user problematic_user
+```
 
-1. **Check configuration**: `repo_runner status`
-2. **Test models**: `repo_runner test_models`
-3. **Validate setup**: `repo_runner config`
-4. **Check logs**: Look for error messages in output
+---
 
-The system will automatically fall back to free models if authentication fails, so it should always work! 
+*This configuration guide is comprehensive and covers all aspects of the Repo Runner system. For specific use cases or advanced configurations, refer to the individual component documentation.* 

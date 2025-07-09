@@ -13,27 +13,54 @@ class RunnerAgent(BaseAgent):
     Agent responsible for running and managing the main application workflow.
     Uses DependencyAgent for all dependency management (agentic OOP pattern).
     """
-    def __init__(self):
-        super().__init__()
-        self.dependency_agent = DependencyAgent()
+    def __init__(self, config=None):
+        super().__init__(config=config)
+        self.dependency_agent = DependencyAgent(config=config)
         self.dependency_agent.ensure_packages(['requests'], upgrade=False)
 
-    def run(self, repo_path=None, env=None, config=None, *args, **kwargs):
-        summary = {}
-        # Python backend
-        backend_entry = self._find_python_entry(repo_path)
-        if backend_entry:
-            summary['python'] = self._run_python_app(backend_entry, repo_path)
-        # Node.js backend
-        node_entry = self._find_node_entry(repo_path)
-        if node_entry:
-            summary['node'] = self._run_node_app(node_entry, repo_path)
-        # Frontend (React/Vue/Next.js)
-        frontend_entry = self._find_frontend_entry(repo_path)
-        if frontend_entry:
-            summary['frontend'] = self._run_frontend_app(frontend_entry, repo_path)
-        self.log_result(f"[RunnerAgent] Run summary: {summary}")
-        return {"status": "ok", "agent": self.agent_name, "summary": summary}
+    def run(self, *args, **kwargs):
+        """Execute and run the target application"""
+        repo_path = kwargs.get('repo_path', '.')
+        detection_result = kwargs.get('detection_result', {})
+        
+        try:
+            # Use the existing runner logic
+            summary = {}
+            
+            # Python backend
+            backend_entry = self._find_python_entry(repo_path)
+            if backend_entry:
+                summary['python'] = self._run_python_app(backend_entry, repo_path)
+            
+            # Node.js backend
+            node_entry = self._find_node_entry(repo_path)
+            if node_entry:
+                summary['node'] = self._run_node_app(node_entry, repo_path)
+            
+            # Frontend (React/Vue/Next.js)
+            frontend_entry = self._find_frontend_entry(repo_path)
+            if frontend_entry:
+                summary['frontend'] = self._run_frontend_app(frontend_entry, repo_path)
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "summary": summary,
+                "services_started": len(summary)
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
 
     def _find_python_entry(self, repo_path):
         # Look for main.py, app.py, manage.py (Django)

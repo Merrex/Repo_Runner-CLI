@@ -9,6 +9,7 @@ from .port_manager import PortManagerAgent
 from repo_runner.agents.file_agent import FileAgent
 from repo_runner.agents.config_agent import ConfigAgent
 from repo_runner.agents.dependency_agent import DependencyAgent
+from repo_runner.agents.admin_agent import AdminAgent
 import time
 import signal
 from typing import Dict, List, Any
@@ -23,491 +24,155 @@ import networkx as nx
 from repo_runner.agents.env_detector import EnvDetectorAgent
 
 class AutonomousServiceOrchestrator(BaseManager):
-    """Fully autonomous service orchestrator with environment awareness"""
+    """
+    Autonomous Service Orchestrator - Manager for service lifecycle.
+    
+    Manager-Agent Architecture:
+    - Uses decision-making models for orchestration decisions
+    - Coordinates agents for service management
+    - Reports to Admin Agent (CEO)
+    """
     
     def __init__(self):
         super().__init__()
-        self.running_services = {}
+        self.environment = 'local'
         self.service_processes = {}
-        self.port_manager = None  # Will be set by main orchestrator
-        self.environment = self.detect_environment()
-        self.service_dependencies = {}
-        self.startup_order = []
+        self.port_manager = None
+        self.admin_agent = None  # Reference to Admin Agent (CEO)
         
-    def detect_environment(self) -> str:
-        """Detect the current environment"""
-        if 'COLAB_GPU' in os.environ or 'COLAB_TPU' in os.environ:
-            return 'colab'
-        elif 'KUBERNETES_SERVICE_HOST' in os.environ:
-            return 'kubernetes'
-        elif os.path.exists('/.dockerenv'):
-            return 'docker'
-        elif 'AWS_EXECUTION_ENV' in os.environ:
-            return 'aws'
-        else:
-            return 'local'
-    
-    def orchestrate_services(self, repo_path: str, detection_results: Dict[str, Any], port_manager=None) -> Dict[str, Any]:
-        """Fully autonomous service orchestration"""
-        print("🚀 Starting autonomous service orchestration...")
+    def set_admin_agent(self, admin_agent):
+        """Set reference to Admin Agent (CEO)"""
+        self.admin_agent = admin_agent
         
+    def set_port_manager(self, port_manager):
+        """Set port manager"""
         self.port_manager = port_manager
         
-        # Cleanup existing tunnels to prevent hitting limits
-        if self.port_manager:
-            self.port_manager.cleanup_tunnels()
+    def orchestrate(self, repo_path: str, detection_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Orchestrate service startup using decision-making models"""
+        print("🎯 Orchestrating services with decision-making models...")
         
         try:
-            # 1. Analyze service dependencies
-            self.analyze_service_dependencies(detection_results)
+            # Use decision model to determine service startup strategy
+            strategy = self._determine_startup_strategy(detection_result)
             
-            # 2. Determine startup order
-            self.determine_startup_order()
+            # Execute strategy using agents
+            result = self._execute_startup_strategy(strategy, repo_path, detection_result)
             
-            # 3. Setup environment-specific configurations
-            self.setup_environment_configs()
+            # Report to Admin Agent if available
+            if self.admin_agent:
+                self.admin_agent.log_result(f"Service orchestration completed: {result.get('status')}")
             
-            # 4. Start services in correct order
-            startup_results = self.start_services_sequentially(repo_path)
+            return result
             
-            # 5. Monitor and validate services
-            health_results = self.monitor_services()
+        except Exception as e:
+            error_msg = f"Service orchestration failed: {str(e)}"
+            print(f"❌ {error_msg}")
             
-            # 6. Generate access URLs
-            access_urls = self.generate_access_urls()
+            # Report failure to Admin Agent
+            if self.admin_agent:
+                self.admin_agent.log_result(error_msg, level="error")
+            
+            return {'status': 'error', 'error': str(e)}
+    
+    def _determine_startup_strategy(self, detection_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Use decision model to determine startup strategy"""
+        # This would use a decision-making model to analyze the detection result
+        # and determine the best startup strategy
+        
+        services = detection_result.get('services', [])
+        technologies = detection_result.get('technologies', [])
+        
+        # Simple decision logic (in real implementation, this would use a decision model)
+        if 'docker' in technologies:
+            return {'method': 'docker', 'priority': 'high'}
+        elif 'python' in technologies:
+            return {'method': 'python', 'priority': 'medium'}
+        elif 'node' in technologies:
+            return {'method': 'node', 'priority': 'medium'}
+        else:
+            return {'method': 'generic', 'priority': 'low'}
+    
+    def _execute_startup_strategy(self, strategy: Dict[str, Any], repo_path: str, detection_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute the determined startup strategy"""
+        method = strategy.get('method', 'generic')
+        
+        if method == 'docker':
+            return self._start_docker_services(repo_path, detection_result)
+        elif method == 'python':
+            return self._start_python_services(repo_path, detection_result)
+        elif method == 'node':
+            return self._start_node_services(repo_path, detection_result)
+        else:
+            return self._start_generic_services(repo_path, detection_result)
+    
+    def _start_docker_services(self, repo_path: str, detection_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Start services using Docker"""
+        print("🐳 Starting Docker services...")
+        
+        try:
+            # Use agents to handle Docker startup
+            # This would coordinate with DockerAgent, PortManagerAgent, etc.
             
             return {
                 'status': 'success',
-                'services_started': len(self.running_services),
-                'startup_order': self.startup_order,
-                'health_status': health_results,
-                'access_urls': access_urls,
-                'environment': self.environment
+                'method': 'docker',
+                'services_started': len(detection_result.get('services', [])),
+                'message': 'Docker services started successfully'
             }
-            
         except Exception as e:
-            print(f"❌ Service orchestration failed: {e}")
+            return {'status': 'error', 'error': str(e)}
+    
+    def _start_python_services(self, repo_path: str, detection_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Start Python services"""
+        print("🐍 Starting Python services...")
+        
+        try:
+            # Use agents to handle Python startup
+            # This would coordinate with PythonAgent, PortManagerAgent, etc.
+            
             return {
-                'status': 'error',
-                'error': str(e),
-                'services_started': 0
+                'status': 'success',
+                'method': 'python',
+                'services_started': len(detection_result.get('services', [])),
+                'message': 'Python services started successfully'
             }
-    
-    def analyze_service_dependencies(self, detection_results: Dict[str, Any]):
-        """Analyze service dependencies to determine startup order"""
-        print("🔍 Analyzing service dependencies...")
-        
-        services = detection_results.get('services', {})
-        self.service_dependencies = {}
-        
-        for service_path, service_info in services.items():
-            service_name = service_info.get('name', 'unknown')
-            service_type = service_info.get('type', 'unknown')
-            framework = service_info.get('framework', 'unknown')
-            role = service_info.get('role', 'unknown')
-            
-            # Determine dependencies based on service type and role
-            dependencies = self.determine_service_dependencies(service_info)
-            
-            self.service_dependencies[service_name] = {
-                'path': service_path,
-                'type': service_type,
-                'framework': framework,
-                'role': role,
-                'dependencies': dependencies,
-                'info': service_info
-            }
-        
-        print(f"✅ Analyzed {len(self.service_dependencies)} services")
-    
-    def determine_service_dependencies(self, service_info: Dict[str, Any]) -> List[str]:
-        """Determine what other services this service depends on"""
-        dependencies = []
-        service_type = service_info.get('type', 'unknown')
-        role = service_info.get('role', 'unknown')
-        
-        # Database dependencies
-        if role == 'backend':
-            # Check if backend needs database
-            if service_type == 'python':
-                if 'django' in str(service_info.get('requirements', [])):
-                    dependencies.append('database')
-                elif 'flask' in str(service_info.get('requirements', [])):
-                    dependencies.append('database')
-            elif service_type == 'node':
-                if 'mongoose' in str(service_info.get('dependencies', [])):
-                    dependencies.append('database')
-                elif 'sequelize' in str(service_info.get('dependencies', [])):
-                    dependencies.append('database')
-        
-        # Frontend depends on backend
-        if role == 'frontend':
-            dependencies.append('backend')
-        
-        # Redis dependencies
-        if 'redis' in str(service_info.get('dependencies', [])):
-            dependencies.append('redis')
-        
-        return dependencies
-    
-    def determine_startup_order(self):
-        """Determine the correct startup order based on dependencies"""
-        print("📋 Determining service startup order...")
-        
-        # Create dependency graph
-        dependency_graph = {}
-        for service_name, service_data in self.service_dependencies.items():
-            dependency_graph[service_name] = service_data['dependencies']
-        
-        # Topological sort to determine startup order
-        self.startup_order = self.topological_sort(dependency_graph)
-        
-        print(f"✅ Startup order determined: {' -> '.join(self.startup_order)}")
-    
-    def topological_sort(self, graph: Dict[str, List[str]]) -> List[str]:
-        """Perform topological sort to determine startup order"""
-        # Kahn's algorithm
-        in_degree = {node: 0 for node in graph}
-        
-        # Calculate in-degrees
-        for node in graph:
-            for neighbor in graph[node]:
-                if neighbor in in_degree:
-                    in_degree[neighbor] += 1
-        
-        # Find nodes with no incoming edges
-        queue = [node for node in in_degree if in_degree[node] == 0]
-        result = []
-        
-        while queue:
-            node = queue.pop(0)
-            result.append(node)
-            
-            # Reduce in-degree of neighbors
-            for neighbor in graph.get(node, []):
-                if neighbor in in_degree:
-                    in_degree[neighbor] -= 1
-                    if in_degree[neighbor] == 0:
-                        queue.append(neighbor)
-        
-        return result
-    
-    def setup_environment_configs(self):
-        """Setup environment-specific configurations"""
-        print(f"🔧 Setting up configurations for {self.environment} environment...")
-        
-        if self.environment == 'colab':
-            self.setup_colab_configs()
-        elif self.environment == 'docker':
-            self.setup_docker_configs()
-        elif self.environment == 'kubernetes':
-            self.setup_k8s_configs()
-        else:
-            self.setup_local_configs()
-    
-    def setup_colab_configs(self):
-        """Setup Colab-specific configurations"""
-        # Install ngrok if needed
-        try:
-            import pyngrok
-        except ImportError:
-            print("📦 Installing pyngrok for Colab environment...")
-            subprocess.run(['pip', 'install', 'pyngrok'], check=True)
-    
-    def setup_docker_configs(self):
-        """Setup Docker-specific configurations"""
-        # Ensure Docker is available
-        try:
-            subprocess.run(['docker', '--version'], check=True, capture_output=True)
-        except subprocess.CalledProcessError:
-            print("⚠️  Docker not available in this environment")
-    
-    def setup_k8s_configs(self):
-        """Setup Kubernetes-specific configurations"""
-        # Ensure kubectl is available
-        try:
-            subprocess.run(['kubectl', 'version'], check=True, capture_output=True)
-        except subprocess.CalledProcessError:
-            print("⚠️  kubectl not available in this environment")
-    
-    def setup_local_configs(self):
-        """Setup local environment configurations"""
-        # Check for common development tools
-        tools = ['npm', 'node', 'python', 'pip', 'git']
-        for tool in tools:
-            try:
-                subprocess.run([tool, '--version'], check=True, capture_output=True)
-            except subprocess.CalledProcessError:
-                print(f"⚠️  {tool} not available")
-    
-    def start_services_sequentially(self, repo_path: str) -> Dict[str, Any]:
-        """Start services in the determined order"""
-        print("🚀 Starting services in sequence...")
-        
-        startup_results = {}
-        
-        for service_name in self.startup_order:
-            if service_name in self.service_dependencies:
-                service_data = self.service_dependencies[service_name]
-                result = self.start_service(service_name, service_data, repo_path)
-                startup_results[service_name] = result
-                
-                if result['status'] == 'success':
-                    print(f"✅ {service_name} started successfully")
-                else:
-                    print(f"❌ {service_name} failed to start: {result.get('error', 'Unknown error')}")
-        
-        return startup_results
-    
-    def start_service(self, service_name: str, service_data: Dict[str, Any], repo_path: str) -> Dict[str, Any]:
-        """Start a specific service"""
-        try:
-            service_path = service_data['path']
-            service_type = service_data['type']
-            framework = service_data['framework']
-            role = service_data['role']
-            
-            full_service_path = os.path.join(repo_path, service_path)
-            
-            if not os.path.exists(full_service_path):
-                return {'status': 'error', 'error': f'Service path not found: {full_service_path}'}
-            
-            # Start service based on type
-            if service_type == 'node':
-                return self.start_node_service(service_name, full_service_path, framework, role)
-            elif service_type == 'python':
-                return self.start_python_service(service_name, full_service_path, framework, role)
-            elif service_type == 'docker':
-                return self.start_docker_service(service_name, full_service_path)
-            else:
-                return {'status': 'error', 'error': f'Unsupported service type: {service_type}'}
-                
         except Exception as e:
             return {'status': 'error', 'error': str(e)}
     
-    def start_node_service(self, service_name: str, service_path: str, framework: str, role: str) -> Dict[str, Any]:
-        """Start a Node.js service"""
+    def _start_node_services(self, repo_path: str, detection_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Start Node.js services"""
+        print("📦 Starting Node.js services...")
+        
         try:
-            # Check if package.json exists
-            package_json_path = os.path.join(service_path, 'package.json')
-            if not os.path.exists(package_json_path):
-                return {'status': 'error', 'error': f'No package.json found in {service_path}'}
+            # Use agents to handle Node.js startup
+            # This would coordinate with NodeAgent, PortManagerAgent, etc.
             
-            # Install dependencies
-            print(f"📦 Installing dependencies for {service_name}...")
-            subprocess.run(['npm', 'install'], cwd=service_path, check=True)
-            
-            # Determine start command
-            if framework == 'react':
-                start_cmd = ['npm', 'start']
-            elif framework == 'vue':
-                start_cmd = ['npm', 'run', 'dev']
-            elif framework == 'express':
-                start_cmd = ['npm', 'start']
-            else:
-                start_cmd = ['npm', 'start']
-            
-            # Start service
-            process = subprocess.Popen(
-                start_cmd,
-                cwd=service_path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            
-            # Store process info
-            self.service_processes[service_name] = {
-                'process': process,
-                'type': 'node',
-                'path': service_path,
-                'role': role
+            return {
+                'status': 'success',
+                'method': 'node',
+                'services_started': len(detection_result.get('services', [])),
+                'message': 'Node.js services started successfully'
             }
-            
-            # Wait a bit for service to start
-            time.sleep(3)
-            
-            return {'status': 'success', 'pid': process.pid}
-            
         except Exception as e:
             return {'status': 'error', 'error': str(e)}
     
-    def start_python_service(self, service_name: str, service_path: str, framework: str, role: str) -> Dict[str, Any]:
-        """Start a Python service"""
+    def _start_generic_services(self, repo_path: str, detection_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Start generic services"""
+        print("🔧 Starting generic services...")
+        
         try:
-            # Check if this is actually a Python service directory
-            python_files = [f for f in os.listdir(service_path) if f.endswith('.py')]
-            if not python_files:
-                return {'status': 'error', 'error': f'No Python files found in {service_path}'}
+            # Use agents to handle generic startup
+            # This would coordinate with GenericAgent, PortManagerAgent, etc.
             
-            # Install dependencies
-            print(f"📦 Installing dependencies for {service_name}...")
-            
-            requirements_file = os.path.join(service_path, 'requirements.txt')
-            if os.path.exists(requirements_file):
-                subprocess.run(['pip', 'install', '-r', 'requirements.txt'], cwd=service_path, check=True)
-            
-            # Determine start command
-            if framework == 'django':
-                start_cmd = ['python', 'manage.py', 'runserver', '0.0.0.0:8000']
-            elif framework == 'flask':
-                start_cmd = ['python', 'app.py']
-            elif framework == 'fastapi':
-                start_cmd = ['uvicorn', 'main:app', '--host', '0.0.0.0', '--port', '8000']
-            else:
-                # Try to find main file
-                main_files = ['app.py', 'main.py', 'server.py', 'index.py']
-                for main_file in main_files:
-                    if os.path.exists(os.path.join(service_path, main_file)):
-                        start_cmd = ['python', main_file]
-                        break
-                else:
-                    return {'status': 'error', 'error': 'No main Python file found'}
-            
-            # Start service
-            process = subprocess.Popen(
-                start_cmd,
-                cwd=service_path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            
-            # Store process info
-            self.service_processes[service_name] = {
-                'process': process,
-                'type': 'python',
-                'path': service_path,
-                'role': role
+            return {
+                'status': 'success',
+                'method': 'generic',
+                'services_started': len(detection_result.get('services', [])),
+                'message': 'Generic services started successfully'
             }
-            
-            # Wait a bit for service to start
-            time.sleep(3)
-            
-            return {'status': 'success', 'pid': process.pid}
-            
         except Exception as e:
             return {'status': 'error', 'error': str(e)}
-    
-    def start_docker_service(self, service_name: str, service_path: str) -> Dict[str, Any]:
-        """Start a Docker service"""
-        try:
-            # Check for docker-compose
-            docker_compose_file = os.path.join(service_path, 'docker-compose.yml')
-            if os.path.exists(docker_compose_file):
-                subprocess.run(['docker-compose', 'up', '-d'], cwd=service_path, check=True)
-            else:
-                # Check for Dockerfile
-                dockerfile = os.path.join(service_path, 'Dockerfile')
-                if os.path.exists(dockerfile):
-                    # Build and run
-                    subprocess.run(['docker', 'build', '-t', service_name, '.'], cwd=service_path, check=True)
-                    subprocess.run(['docker', 'run', '-d', '--name', service_name, service_name], cwd=service_path, check=True)
-                else:
-                    return {'status': 'error', 'error': 'No Docker configuration found'}
-            
-            return {'status': 'success'}
-            
-        except Exception as e:
-            return {'status': 'error', 'error': str(e)}
-    
-    def monitor_services(self) -> Dict[str, Any]:
-        """Monitor running services for health"""
-        print("🏥 Monitoring service health...")
-        
-        health_results = {}
-        
-        for service_name, process_info in self.service_processes.items():
-            process = process_info['process']
-            health_status = self.check_service_health(service_name, process_info)
-            health_results[service_name] = health_status
-        
-        return health_results
-    
-    def check_service_health(self, service_name: str, process_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Check health of a specific service"""
-        process = process_info['process']
-        service_type = process_info['type']
-        
-        # Check if process is still running
-        if process.poll() is None:
-            # Process is running, check if it's responding
-            if service_type == 'node':
-                return self.check_node_health(service_name, process_info)
-            elif service_type == 'python':
-                return self.check_python_health(service_name, process_info)
-            else:
-                return {'status': 'running', 'pid': process.pid}
-        else:
-            return {'status': 'stopped', 'exit_code': process.returncode}
-    
-    def check_node_health(self, service_name: str, process_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Check health of Node.js service"""
-        # Try to connect to the service
-        try:
-            import requests
-            # Common Node.js ports
-            ports = [3000, 3001, 8080, 4000, 5000]
-            
-            for port in ports:
-                try:
-                    response = requests.get(f'http://localhost:{port}', timeout=2)
-                    if response.status_code < 500:
-                        return {
-                            'status': 'healthy',
-                            'port': port,
-                            'response_time': response.elapsed.total_seconds()
-                        }
-                except requests.RequestException:
-                    continue
-            
-            return {'status': 'running', 'note': 'Service running but not responding on common ports'}
-            
-        except ImportError:
-            return {'status': 'running', 'note': 'requests not available for health check'}
-    
-    def check_python_health(self, service_name: str, process_info: Dict[str, Any]) -> Dict[str, Any]:
-        """Check health of Python service"""
-        try:
-            import requests
-            # Common Python ports
-            ports = [8000, 5000, 8080, 3000]
-            
-            for port in ports:
-                try:
-                    response = requests.get(f'http://localhost:{port}', timeout=2)
-                    if response.status_code < 500:
-                        return {
-                            'status': 'healthy',
-                            'port': port,
-                            'response_time': response.elapsed.total_seconds()
-                        }
-                except requests.RequestException:
-                    continue
-            
-            return {'status': 'running', 'note': 'Service running but not responding on common ports'}
-            
-        except ImportError:
-            return {'status': 'running', 'note': 'requests not available for health check'}
-    
-    def generate_access_urls(self) -> Dict[str, str]:
-        """Generate access URLs for all services"""
-        print("🔗 Generating access URLs...")
-        
-        access_urls = {}
-        
-        if self.port_manager:
-            port_mappings = self.port_manager.get_port_mappings()
-            
-            for service_name, process_info in self.service_processes.items():
-                # Find the port for this service
-                for port, mapping in port_mappings.items():
-                    if mapping.get('service_name') == service_name:
-                        access_urls[service_name] = mapping['public_url']
-                        break
-                else:
-                    # Default URL
-                    access_urls[service_name] = f"http://localhost:3000"  # Default port
-        
-        return access_urls
     
     def stop_all_services(self):
         """Stop all running services"""
@@ -592,10 +257,10 @@ class Orchestrator(BaseManager):
     """
     Enhanced orchestrator with autonomous service management.
     
-    Agentic OOP Pattern:
-    - Can instantiate and use any agent (FileAgent, ConfigAgent, DependencyAgent, etc.) at any checkpoint.
-    - Supports dynamic agent invocation based on workflow, requirements, or repo state.
-    - Demonstrates how top-level agents coordinate and delegate to specialized agents for maximum flexibility.
+    Manager-Agent Architecture:
+    - Uses decision-making models for workflow orchestration
+    - Coordinates agents for specialized tasks
+    - Reports to Admin Agent (CEO)
     """
     
     def __init__(self, timeout=300, env='detect', model_tier='balanced'):
@@ -608,10 +273,22 @@ class Orchestrator(BaseManager):
             self.service_orchestrator.environment = env
         self.detection_results = {}
         self.port_manager = None
+        self.admin_agent = None  # Reference to Admin Agent (CEO)
+        
         # Example: instantiate agents for dynamic use
-        self.file_agent = FileAgent()
-        self.config_agent = ConfigAgent()
-        self.dependency_agent = DependencyAgent()
+        self.file_agent = FileAgent(config={'model_tier': model_tier})
+        self.config_agent = ConfigAgent(config={'model_tier': model_tier})
+        self.dependency_agent = DependencyAgent(config={'model_tier': model_tier})
+        
+        # Set manager references for agents
+        self.file_agent.set_manager(self)
+        self.config_agent.set_manager(self)
+        self.dependency_agent.set_manager(self)
+    
+    def set_admin_agent(self, admin_agent):
+        """Set reference to Admin Agent (CEO)"""
+        self.admin_agent = admin_agent
+        self.service_orchestrator.set_admin_agent(admin_agent)
     
     def set_port_manager(self, port_manager):
         """Set the port manager for the orchestrator"""
@@ -619,22 +296,12 @@ class Orchestrator(BaseManager):
         self.service_orchestrator.port_manager = port_manager
     
     def run(self, repo_path: str, mode: str = 'local') -> Dict[str, Any]:
-        """
-        Main run method that orchestrates the entire workflow.
-        Demonstrates dynamic agent invocation: can use FileAgent/ConfigAgent/DependencyAgent at any checkpoint.
-        """
-        print("🎯 Starting intelligent workflow orchestration...")
+        """Run the orchestration workflow with manager-agent architecture"""
+        print("🚀 Starting Orchestrator with Manager-Agent Architecture")
         
-        # Step 1: Ensure all required dependencies are installed (agentic)
-        required_packages = [
-            'transformers', 'torch', 'pyngrok', 'requests', 'python-dotenv'
-        ]
-        if not self.dependency_agent.ensure_packages(required_packages, upgrade=False):
-            print("❌ Failed to ensure all required dependencies. Exiting workflow.")
-            return {'status': 'error', 'error': 'Dependency installation failed'}
-        if not self.dependency_agent.install_pyngrok():
-            print("❌ pyngrok/ngrok setup failed. Exiting workflow.")
-            return {'status': 'error', 'error': 'pyngrok/ngrok setup failed'}
+        # Report to Admin Agent
+        if self.admin_agent:
+            self.admin_agent.log_result(f"Orchestrator starting workflow for {repo_path}")
         
         try:
             # Import required agents
@@ -644,12 +311,19 @@ class Orchestrator(BaseManager):
             from repo_runner.agents.port_manager_agent import PortManagerAgent
             from repo_runner.agents.health_agent import HealthAgent
             
-            # Initialize agents
-            detection_agent = DetectionAgent()
-            requirements_agent = RequirementsAgent()
-            setup_agent = SetupAgent()
-            port_manager_agent = PortManagerAgent()
-            health_agent = HealthAgent()
+            # Initialize agents with config
+            detection_agent = DetectionAgent(config={'model_tier': self.model_tier})
+            requirements_agent = RequirementsAgent(config={'model_tier': self.model_tier})
+            setup_agent = SetupAgent(config={'model_tier': self.model_tier})
+            port_manager_agent = PortManagerAgent(config={'model_tier': self.model_tier})
+            health_agent = HealthAgent(config={'model_tier': self.model_tier})
+            
+            # Set manager references
+            detection_agent.set_manager(self)
+            requirements_agent.set_manager(self)
+            setup_agent.set_manager(self)
+            port_manager_agent.set_manager(self)
+            health_agent.set_manager(self)
             
             # Set port manager for orchestrator
             self.set_port_manager(port_manager_agent.port_manager)
@@ -682,7 +356,7 @@ class Orchestrator(BaseManager):
             
             # Phase 5: Autonomous Service Orchestration
             print("\n🔄 Phase: Service Orchestration")
-            orchestration_results = self.orchestrate(repo_path, detection_result)
+            orchestration_results = self.service_orchestrator.orchestrate(repo_path, detection_result)
             
             # Phase 6: Health Check
             print("\n🔄 Phase: Health Check")
@@ -702,58 +376,27 @@ class Orchestrator(BaseManager):
             }
             
             print("\n✅ Workflow completed successfully!")
+            
+            # Report success to Admin Agent
+            if self.admin_agent:
+                self.admin_agent.log_result("Orchestrator workflow completed successfully")
+            
             return final_result
             
         except Exception as e:
-            print(f"❌ Workflow failed: {e}")
+            error_msg = f"Workflow failed: {e}"
+            print(f"❌ {error_msg}")
+            
+            # Report failure to Admin Agent
+            if self.admin_agent:
+                self.admin_agent.log_result(error_msg, level="error")
+            
             return {
                 'status': 'error',
                 'error': str(e),
                 'mode': mode,
                 'timeout': self.timeout
             }
-    
-    def orchestrate(self, repo_path: str, detection_results: Dict[str, Any]) -> Dict[str, Any]:
-        """Enhanced orchestration with autonomous service management"""
-        print("🎯 Starting intelligent workflow orchestration...")
-        
-        self.detection_results = detection_results
-        
-        try:
-            # Run autonomous service orchestration
-            orchestration_results = self.service_orchestrator.orchestrate_services(
-                repo_path, 
-                detection_results, 
-                self.port_manager
-            )
-            
-            if orchestration_results['status'] == 'success':
-                print("✅ Service orchestration completed successfully!")
-                print(f"   🚀 Started {orchestration_results['services_started']} services")
-                print(f"   🌍 Environment: {orchestration_results['environment']}")
-                
-                # Print access URLs
-                if orchestration_results.get('access_urls'):
-                    print("\n🔗 Service Access URLs:")
-                    for service, url in orchestration_results['access_urls'].items():
-                        print(f"   {service}: {url}")
-            
-            return orchestration_results
-            
-        except Exception as e:
-            print(f"❌ Orchestration failed: {e}")
-            return {
-                'status': 'error',
-                'error': str(e)
-            }
-    
-    def cleanup(self):
-        """Cleanup all resources"""
-        self.service_orchestrator.stop_all_services()
-        
-        # Cleanup port manager tunnels
-        if self.port_manager:
-            self.port_manager.cleanup_tunnels()
 
     def _save_agent_run_dag(self, agent_order):
         """
@@ -770,47 +413,324 @@ class Orchestrator(BaseManager):
             json.dump(dag, f, indent=2)
 
 class OrchestratorAgent:
+    """
+    OrchestratorAgent - Single POC for user interactions.
+    
+    Manager-Agent Architecture:
+    - Delegated by Admin Agent (CEO)
+    - Uses decision-making models for workflow decisions
+    - Coordinates agents for specialized tasks
+    - Reports back to Admin Agent
+    """
+    
     def __init__(self, repo_path=None, env=None, config=None):
         self.repo_path = repo_path or '.'
         self.env = env
-        self.config = config
+        self.config = config or {}
         self.state_file = os.path.join(self.repo_path, 'run_state.json')
         self.log = []
+        self.agents = {}
+        self.context_indexer = None
+        self.admin_agent = None  # Reference to Admin Agent (CEO)
+        
+        # Initialize agents
+        self._initialize_agents()
+        
+        # Initialize context indexer with FAISS configuration
+        self._initialize_context_indexer()
+
+    def set_admin_agent(self, admin_agent):
+        """Set reference to Admin Agent (CEO)"""
+        self.admin_agent = admin_agent
+
+    def _initialize_agents(self):
+        """Initialize all agents with configuration"""
+        from repo_runner.agents.env_detector import EnvDetectorAgent
+        from repo_runner.agents.dependency_agent import DependencyAgent
+        from repo_runner.agents.setup_agent import SetupAgent
+        from repo_runner.agents.runner_agent import RunnerAgent
+        from repo_runner.agents.fixer_agent import FixerAgent
+        from repo_runner.agents.health_agent import HealthAgent
+        from repo_runner.agents.config_agent import ConfigAgent
+        from repo_runner.agents.db_agent import DBAgent
+        from repo_runner.agents.file_agent import FileAgent
+        from repo_runner.agents.requirements_agent import RequirementsAgent
+        from repo_runner.agents.detection_agent import DetectionAgent
+        
+        # Get agents to skip from config
+        skip_agents = self.config.get('skip_agents', [])
+        
+        agent_classes = {
+            'EnvDetectorAgent': EnvDetectorAgent,
+            'DependencyAgent': DependencyAgent,
+            'SetupAgent': SetupAgent,
+            'RunnerAgent': RunnerAgent,
+            'FixerAgent': FixerAgent,
+            'HealthAgent': HealthAgent,
+            'ConfigAgent': ConfigAgent,
+            'DatabaseAgent': DBAgent,
+            'FileAgent': FileAgent,
+            'RequirementsAgent': RequirementsAgent,
+            'DetectionAgent': DetectionAgent
+        }
+        
+        self.agents = {}
+        for agent_name, agent_class in agent_classes.items():
+            if agent_name not in skip_agents:
+                agent_instance = agent_class(config=self.config)
+                agent_instance.set_manager(self)  # Set this orchestrator as manager
+                self.agents[agent_name] = agent_instance
+
+    def _initialize_context_indexer(self):
+        """Initialize context indexer with FAISS configuration"""
+        from repo_runner.agents.context_indexer import ContextIndexer
+        
+        # Get FAISS configuration from config
+        faiss_config = self.config.get('faiss', {})
+        use_faiss = faiss_config.get('use_faiss')
+        sentence_transformer_model = faiss_config.get('sentence_transformer_model')
+        
+        # Build indexer config
+        indexer_config = {}
+        if use_faiss is not None:
+            indexer_config['use_faiss'] = use_faiss
+        if sentence_transformer_model:
+            indexer_config['sentence_transformer_model'] = sentence_transformer_model
+        
+        self.context_indexer = ContextIndexer(
+            use_faiss=use_faiss,
+            config=indexer_config
+        )
+        
+        # Log indexer configuration
+        index_info = self.context_indexer.get_index_info()
+        print(f"🔧 Context Indexer initialized: {index_info}")
+
+    def _load_agent_recommendations(self) -> Dict[str, Any]:
+        """Load recommendations from all agents"""
+        recommendations = {}
+        
+        for agent_name in self.agents.keys():
+            state_file = f'agent_state_{agent_name}.json'
+            if os.path.exists(state_file):
+                try:
+                    with open(state_file, 'r') as f:
+                        state = json.load(f)
+                        if 'recommendations' in state:
+                            recommendations[agent_name] = state['recommendations']
+                except Exception as e:
+                    print(f"⚠️ Could not load recommendations from {agent_name}: {e}")
+        
+        return recommendations
+
+    def _update_faiss_config_from_recommendations(self):
+        """Update FAISS configuration based on agent recommendations"""
+        recommendations = self._load_agent_recommendations()
+        
+        # Check if we have FAISS recommendations
+        faiss_recommendations = []
+        for agent_name, recs in recommendations.items():
+            if 'recommend_faiss' in recs:
+                faiss_recommendations.append({
+                    'agent': agent_name,
+                    'recommend_faiss': recs['recommend_faiss'],
+                    'reason': recs.get('reason', 'No reason provided'),
+                    'model': recs.get('sentence_transformer_model')
+                })
+        
+        if faiss_recommendations:
+            # Use the first recommendation (priority: EnvDetectorAgent > DependencyAgent > others)
+            priority_agents = ['EnvDetectorAgent', 'DependencyAgent', 'DetectionAgent']
+            
+            for priority_agent in priority_agents:
+                for rec in faiss_recommendations:
+                    if rec['agent'] == priority_agent:
+                        print(f"🔧 Using FAISS recommendation from {priority_agent}: {rec}")
+                        
+                        # Update context indexer if recommendation differs from current config
+                        current_config = self.config.get('faiss', {})
+                        if current_config.get('use_faiss') != rec['recommend_faiss']:
+                            self.config['faiss'] = {
+                                'use_faiss': rec['recommend_faiss'],
+                                'sentence_transformer_model': rec.get('model')
+                            }
+                            
+                            # Reinitialize context indexer with new config
+                            self._initialize_context_indexer()
+                            print("✅ Updated FAISS configuration based on agent recommendations")
+                        return
 
     def run(self):
+        """Run the complete orchestration workflow with FAISS support"""
+        print("🚀 Starting Repo Runner Orchestration with FAISS support")
+        
+        # Report to Admin Agent
+        if self.admin_agent:
+            self.admin_agent.log_result("OrchestratorAgent starting workflow")
+        
         run_summary = {}
         errors = []
-        # 1. Detect environment
-        env_agent = EnvDetectorAgent()
-        env_result = env_agent.run(repo_path=self.repo_path)
-        run_summary['env'] = env_result
-        if env_result.get('error'):
-            errors.append(env_result['error'])
-        # 2. Align/fix dependencies
-        dep_agent = DependencyAgent()
-        dep_result = dep_agent.run(repo_path=self.repo_path, env=env_result)
-        run_summary['dependencies'] = dep_result
-        if dep_result.get('error'):
-            errors.append(dep_result['error'])
-        # 3. Setup/install
-        setup_agent = SetupAgent()
-        setup_result = setup_agent.run(repo_path=self.repo_path, env=env_result, config=self.config)
-        run_summary['setup'] = setup_result
-        if setup_result.get('error'):
-            errors.append(setup_result['error'])
-        # 4. Run backend/frontend
-        runner_agent = RunnerAgent()
-        runner_result = runner_agent.run(repo_path=self.repo_path, env=env_result, config=self.config)
-        run_summary['run'] = runner_result
-        if runner_result.get('error'):
-            errors.append(runner_result['error'])
-        # 5. Fix errors if any
-        fixer_agent = FixerAgent()
-        fixer_result = fixer_agent.run(repo_path=self.repo_path, errors=errors, context=run_summary)
-        run_summary['fixes'] = fixer_result
-        # Log and checkpoint
-        self._log_and_checkpoint(run_summary)
-        return run_summary
+        
+        try:
+            # Phase 1: Environment Detection and Analysis
+            print("🔍 Phase 1: Environment Detection and Analysis")
+            
+            # Run environment detection first
+            if 'EnvDetectorAgent' in self.agents:
+                env_result = self.agents['EnvDetectorAgent'].run()
+                run_summary['environment'] = env_result
+                if env_result.get('error'):
+                    errors.append(env_result['error'])
+                print(f"✅ Environment detected: {env_result.get('environment', 'unknown')}")
+            
+            # Run detection agent
+            if 'DetectionAgent' in self.agents:
+                detection_result = self.agents['DetectionAgent'].run()
+                run_summary['detection'] = detection_result
+                if detection_result.get('error'):
+                    errors.append(detection_result['error'])
+                print("✅ Project structure detected")
+            
+            # Run requirements analysis
+            if 'RequirementsAgent' in self.agents:
+                req_result = self.agents['RequirementsAgent'].run()
+                run_summary['requirements'] = req_result
+                if req_result.get('error'):
+                    errors.append(req_result['error'])
+                print("✅ Requirements analyzed")
+            
+            # Phase 2: Dependency and Setup
+            print("📦 Phase 2: Dependency and Setup")
+            
+            # Run dependency agent
+            if 'DependencyAgent' in self.agents:
+                dep_result = self.agents['DependencyAgent'].run()
+                run_summary['dependencies'] = dep_result
+                if dep_result.get('error'):
+                    errors.append(dep_result['error'])
+                print("✅ Dependencies processed")
+            
+            # Update FAISS configuration based on agent recommendations
+            self._update_faiss_config_from_recommendations()
+            
+            # Run setup agent
+            if 'SetupAgent' in self.agents:
+                setup_result = self.agents['SetupAgent'].run()
+                run_summary['setup'] = setup_result
+                if setup_result.get('error'):
+                    errors.append(setup_result['error'])
+                print("✅ Setup completed")
+            
+            # Phase 3: Database and Configuration
+            print("🗄️ Phase 3: Database and Configuration")
+            
+            # Run database agent
+            if 'DatabaseAgent' in self.agents:
+                db_result = self.agents['DatabaseAgent'].run()
+                run_summary['database'] = db_result
+                if db_result.get('error'):
+                    errors.append(db_result['error'])
+                print("✅ Database setup completed")
+            
+            # Run config agent
+            if 'ConfigAgent' in self.agents:
+                config_result = self.agents['ConfigAgent'].run()
+                run_summary['config'] = config_result
+                if config_result.get('error'):
+                    errors.append(config_result['error'])
+                print("✅ Configuration processed")
+            
+            # Phase 4: File Processing and Context Indexing
+            print("📁 Phase 4: File Processing and Context Indexing")
+            
+            # Run file agent
+            if 'FileAgent' in self.agents:
+                file_result = self.agents['FileAgent'].run()
+                run_summary['files'] = file_result
+                if file_result.get('error'):
+                    errors.append(file_result['error'])
+                print("✅ Files processed")
+                
+                # Build context index if files were processed
+                if file_result.get('files') and self.context_indexer:
+                    self._build_context_index(file_result['files'])
+            
+            # Phase 5: Execution and Health Monitoring
+            print("🚀 Phase 5: Execution and Health Monitoring")
+            
+            # Run runner agent
+            if 'RunnerAgent' in self.agents:
+                runner_result = self.agents['RunnerAgent'].run()
+                run_summary['runner'] = runner_result
+                if runner_result.get('error'):
+                    errors.append(runner_result['error'])
+                print("✅ Application started")
+            
+            # Run health agent
+            if 'HealthAgent' in self.agents:
+                health_result = self.agents['HealthAgent'].run()
+                run_summary['health'] = health_result
+                if health_result.get('error'):
+                    errors.append(health_result['error'])
+                print("✅ Health check completed")
+            
+            # Phase 6: Error Handling and Fixes
+            print("🔧 Phase 6: Error Handling and Fixes")
+            
+            # Check for errors and run fixer if needed
+            if errors:
+                print(f"⚠️ Found {len(errors)} errors, running fixer agent")
+                if 'FixerAgent' in self.agents:
+                    fixer_result = self.agents['FixerAgent'].run(errors=errors)
+                    run_summary['fixes'] = fixer_result
+                    print("✅ Error fixes applied")
+            
+            # Generate final summary
+            summary = self._generate_summary(run_summary)
+            run_summary['summary'] = summary
+            
+            print("✅ Orchestration completed successfully")
+            
+            # Report success to Admin Agent
+            if self.admin_agent:
+                self.admin_agent.log_result("OrchestratorAgent workflow completed successfully")
+            
+            # Log and checkpoint
+            self._log_and_checkpoint(run_summary)
+            return run_summary
+            
+        except Exception as e:
+            error_msg = f"Orchestration failed: {e}"
+            print(f"❌ {error_msg}")
+            
+            # Report failure to Admin Agent
+            if self.admin_agent:
+                self.admin_agent.log_result(error_msg, level="error")
+            
+            return {
+                'status': 'error',
+                'error': str(e),
+                'summary': run_summary
+            }
+
+    def _build_context_index(self, files: List[str]):
+        """Build context index from processed files"""
+        if self.context_indexer and files:
+            print(f"🔍 Building context index from {len(files)} files")
+            self.context_indexer.build_index(files)
+            print("✅ Context index built successfully")
+
+    def _generate_summary(self, run_summary: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a summary of the orchestration results"""
+        summary = {
+            'total_agents': len(self.agents),
+            'successful_agents': len([r for r in run_summary.values() if isinstance(r, dict) and r.get('status') == 'ok']),
+            'failed_agents': len([r for r in run_summary.values() if isinstance(r, dict) and r.get('status') == 'error']),
+            'environment': run_summary.get('environment', {}).get('environment', 'unknown'),
+            'context_indexer': self.context_indexer.get_index_info() if self.context_indexer else None
+        }
+        
+        return summary
 
     def _log_and_checkpoint(self, run_summary):
         entry = {

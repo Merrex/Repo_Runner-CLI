@@ -355,8 +355,8 @@ class RecursiveConfigScanner:
 class DetectionAgent(BaseAgent):
     """Enhanced detection agent with recursive config scanning"""
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config=None):
+        super().__init__(config=config)
         self.config_scanner = RecursiveConfigScanner()
         self.detected_services = {}
         self.project_structure = {}
@@ -478,6 +478,36 @@ class DetectionAgent(BaseAgent):
                 missing.append(file)
         
         return missing 
+
+    def run(self, *args, **kwargs):
+        """Detect project structure and analyze repository"""
+        repo_path = kwargs.get('repo_path', '.')
+        
+        try:
+            # Use the existing detection logic
+            detection_result = self.detect_project_structure(repo_path)
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "detection": detection_result,
+                "services": detection_result.get('services', []),
+                "technologies": detection_result.get('technologies', []),
+                "files": detection_result.get('files', {})
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
 
     def checkpoint(self, state: dict, checkpoint_file: str = "detection_agent_state.json"):
         """

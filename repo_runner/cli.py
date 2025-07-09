@@ -3,346 +3,237 @@
 CLI interface for repo_runner.
 """
 
-import click
-import os
+import argparse
 import sys
-from pathlib import Path
+import os
+from .orchestrator import OrchestratorAgent
+from .config_manager import ConfigManager
+from .user_management import get_user_manager, UserTier
 
-# Auto-install missing dependencies
-def ensure_dependencies():
-    """Ensure all required dependencies are installed."""
-    missing_deps = []
+def main():
+    parser = argparse.ArgumentParser(description='Repo Runner CLI - Agentic Microservice Backend')
     
-    # Check for python-dotenv
-    try:
-        import dotenv
-    except ImportError:
-        missing_deps.append('python-dotenv')
+    # Authentication
+    parser.add_argument('--username', type=str, help='Username for authentication')
+    parser.add_argument('--password', type=str, help='Password for authentication')
+    parser.add_argument('--login', action='store_true', help='Login with username/password')
+    parser.add_argument('--register', action='store_true', help='Register new user')
+    parser.add_argument('--tier', type=str, choices=['free', 'advanced', 'premium', 'tester', 'admin'],
+                       default='free', help='User tier for registration')
     
-    # Check for transformers
-    try:
-        import transformers
-    except ImportError:
-        missing_deps.append('transformers')
+    # Core CLI parameters
+    parser.add_argument('--repo_path', type=str, default='.', 
+                       help='Path to the repository to analyze and run')
+    parser.add_argument('--env', type=str, default='detect', 
+                       choices=['detect', 'colab', 'aws', 'gcp', 'local'],
+                       help='Environment to run in (detect=auto-detect)')
+    parser.add_argument('--model', type=str, default='tier', 
+                       choices=['premium', 'free', 'balanced', 'tier'],
+                       help='Model tier to use (tier=auto-select based on env)')
     
-    # Check for torch
-    try:
-        import torch
-    except ImportError:
-        missing_deps.append('torch')
+    # FAISS configuration (tier-restricted)
+    parser.add_argument('--use_faiss', type=str, default=None,
+                       choices=['true', 'false', 'auto'],
+                       help='FAISS usage: true=force FAISS, false=force simple search, auto=agent recommendation')
+    parser.add_argument('--faiss_model', type=str, default=None,
+                       help='Sentence transformer model for FAISS (e.g., all-MiniLM-L6-v2)')
     
-    # Install missing dependencies
-    if missing_deps:
-        print(f"🔧 Installing missing dependencies: {', '.join(missing_deps)}")
-        try:
-            import subprocess
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + missing_deps)
-            print("✅ Dependencies installed successfully")
-        except Exception as e:
-            print(f"⚠️ Failed to install some dependencies: {e}")
-            print("The system will continue with fallback functionality")
-
-# Run dependency check
-ensure_dependencies()
-
-from .core import RepoRunner
-from .config import Config
-from .logger import setup_logger
-from .managers.orchestrator import Orchestrator
-from .config_manager import config_manager
-
-
-@click.group()
-@click.version_option(version='1.0.0')
-@click.option('--config', '-c', type=click.Path(exists=True), 
-              help='Path to configuration file')
-@click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-@click.option('--dry-run', is_flag=True, help='Show what would be done without executing')
-@click.pass_context
-def cli(ctx, config, verbose, dry_run):
-    """repo_runner - Universal Repository Analysis and Execution Tool"""
-    ctx.ensure_object(dict)
-    ctx.obj['config'] = Config.load(config) if config else Config()
-    ctx.obj['verbose'] = verbose
-    ctx.obj['dry_run'] = dry_run
+    # Advanced options
+    parser.add_argument('--config_file', type=str, default=None,
+                       help='Path to configuration file')
+    parser.add_argument('--log_level', type=str, default='INFO',
+                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+                       help='Logging level')
+    parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints',
+                       help='Directory for agent checkpoints')
+    parser.add_argument('--skip_agents', nargs='*', default=[],
+                       help='Skip specific agents (e.g., --skip_agents EnvDetectorAgent DependencyAgent)')
     
-    # Setup logging
-    setup_logger(verbose=verbose)
-
-
-@cli.command()
-@click.argument('path', type=click.Path(exists=True), default='.')
-@click.option('--output', '-o', type=click.Choice(['json', 'yaml', 'text']), 
-              default='text', help='Output format')
-@click.pass_context
-def detect(ctx, path, output):
-    """Detect project structure and technologies."""
-    runner = RepoRunner(path, ctx.obj['config'])
-    result = runner.detect_structure()
+    # Admin commands
+    parser.add_argument('--list_users', action='store_true', help='List all users (admin only)')
+    parser.add_argument('--upgrade_user', type=str, help='Upgrade user tier (admin only)')
+    parser.add_argument('--new_tier', type=str, choices=['free', 'advanced', 'premium', 'tester', 'admin'],
+                       help='New tier for user upgrade')
+    parser.add_argument('--block_user', type=str, help='Block a user (admin only)')
+    parser.add_argument('--unblock_user', type=str, help='Unblock a user (admin only)')
+    parser.add_argument('--delete_user', type=str, help='Delete a user (admin only)')
+    parser.add_argument('--usage', action='store_true', help='Show current user usage')
     
-    if output == 'json':
-        import json
-        click.echo(json.dumps(result, indent=2))
-    elif output == 'yaml':
-        import yaml
-        click.echo(yaml.dump(result, default_flow_style=False))
-    else:
-        runner.print_detection_summary(result)
-
-
-@cli.command()
-@click.argument('path', type=click.Path(exists=True), default='.')
-@click.option('--skip-deps', is_flag=True, help='Skip dependency installation')
-@click.option('--skip-env', is_flag=True, help='Skip environment setup')
-@click.option('--skip-db', is_flag=True, help='Skip database setup')
-@click.pass_context
-def setup(ctx, path, skip_deps, skip_env, skip_db):
-    """Setup project dependencies and environment."""
-    runner = RepoRunner(path, ctx.obj['config'], dry_run=ctx.obj['dry_run'])
+    args = parser.parse_args()
     
-    try:
-        if not skip_deps:
-            runner.install_dependencies()
-        if not skip_env:
-            runner.setup_environment()
-        if not skip_db:
-            runner.setup_database()
-        click.echo("✅ Setup completed successfully!")
-    except Exception as e:
-        click.echo(f"❌ Setup failed: {e}", err=True)
-        sys.exit(1)
-
-
-@cli.command()
-@click.argument('repo_path', type=click.Path(exists=True))
-@click.option('--mode', default='local', help='Execution mode (local/cloud)')
-@click.option('--timeout', default=300, help='Timeout in seconds')
-@click.option('--env', default='detect', help='Target environment (detect/aws/gcp/colab/local)')
-@click.option('--model', default='balanced', type=click.Choice(['premium', 'free', 'balanced']), help='Model tier (premium/free/balanced)')
-def run(repo_path: str, mode: str, timeout: int, env: str, model: str):
-    """Run repo_runner on a repository."""
-    from .managers.orchestrator import Orchestrator
-    import json
-    import datetime
-
-    print(f"🚀 Starting repo_runner in {mode} mode...")
-    print(f"📂 Target repository: {repo_path}")
-    print(f"🌎 Environment: {env}")
-    print(f"🤖 Model tier: {model}")
-    print("⏱️ This may take a few minutes for complex repositories...")
-
-    orchestrator = Orchestrator(timeout=timeout, env=env, model_tier=model)
-    result = orchestrator.run(repo_path, mode=mode)
-
-    # Log checkpoint/result after run
-    checkpoint = {
-        'timestamp': datetime.datetime.now().isoformat(),
-        'repo_path': repo_path,
-        'mode': mode,
-        'env': env,
-        'model_tier': model,
-        'result': result
-    }
-    try:
-        with open('run_checkpoint.json', 'w') as f:
-            json.dump(checkpoint, f, indent=2)
-        print("📝 Run checkpoint saved to run_checkpoint.json")
-    except Exception as e:
-        print(f"⚠️ Failed to save run checkpoint: {e}")
-
-    if result['status'] == 'success':
-        print("✅ repo_runner completed successfully!")
-    else:
-        print(f"❌ repo_runner failed: {result.get('error', 'Unknown error')}")
-        sys.exit(1)
-
-
-@cli.command()
-@click.argument('path', type=click.Path(exists=True), default='.')
-@click.pass_context
-def full(ctx, path):
-    """Run complete workflow: detect, setup, and run."""
-    runner = RepoRunner(path, ctx.obj['config'], dry_run=ctx.obj['dry_run'])
+    # Initialize user manager
+    user_manager = get_user_manager()
     
-    try:
-        click.echo("🔍 Detecting project structure...")
-        structure = runner.detect_structure()
-        runner.print_detection_summary(structure)
-        
-        click.echo("\n📦 Installing dependencies...")
-        runner.install_dependencies()
-        
-        click.echo("\n🔧 Setting up environment...")
-        runner.setup_environment()
-        
-        click.echo("\n🗄️  Setting up database...")
-        runner.setup_database()
-        
-        click.echo("\n🚀 Starting application...")
-        runner.run_application()
-        runner.perform_health_check()
-        runner.show_service_urls()
-        
-    except KeyboardInterrupt:
-        click.echo("\n🛑 Workflow stopped by user")
-    except Exception as e:
-        click.echo(f"❌ Workflow failed: {e}", err=True)
-        sys.exit(1)
-
-
-@cli.command()
-@click.argument('path', type=click.Path(exists=True), default='.')
-@click.pass_context
-def docs(ctx, path):
-    """Update project documentation."""
-    runner = RepoRunner(path, ctx.obj['config'], dry_run=ctx.obj['dry_run'])
-    
-    try:
-        runner.update_documentation()
-        click.echo("📚 Documentation updated successfully!")
-    except Exception as e:
-        click.echo(f"❌ Documentation update failed: {e}", err=True)
-        sys.exit(1)
-
-
-@cli.command()
-@click.argument('path', type=click.Path(exists=True), default='.')
-@click.pass_context
-def health(ctx, path):
-    """Check application health."""
-    runner = RepoRunner(path, ctx.obj['config'])
-    
-    try:
-        status = runner.perform_health_check()
-        if status:
-            click.echo("✅ Application is healthy!")
-            runner.show_service_urls()
-        else:
-            click.echo("❌ Application health check failed!")
+    # Handle authentication commands
+    if args.login:
+        if not args.username or not args.password:
+            print("❌ --login requires both --username and --password")
             sys.exit(1)
-    except Exception as e:
-        click.echo(f"❌ Health check failed: {e}", err=True)
-        sys.exit(1)
-
-
-@cli.command()
-def install():
-    """Install dependencies and setup environment."""
-    print("🔧 Installing repo_runner dependencies...")
-    
-    try:
-        import subprocess
         
-        # Install required packages
-        packages = [
-            'transformers',
-            'torch',
-            'requests',
-            'psutil',
-            'python-dotenv',
-            'pyngrok'
-        ]
+        if user_manager.authenticate(args.username, args.password):
+            print(f"✅ Logged in as {args.username}")
+        else:
+            print("❌ Authentication failed")
+            sys.exit(1)
+    
+    elif args.register:
+        if not args.username or not args.password:
+            print("❌ --register requires both --username and --password")
+            sys.exit(1)
         
-        for package in packages:
-            print(f"📦 Installing {package}...")
-            subprocess.run([sys.executable, '-m', 'pip', 'install', package], check=True)
+        tier = UserTier(args.tier)
+        if user_manager.create_user(args.username, args.password, tier):
+            print(f"✅ Registered {args.username} as {tier.value} user")
+            if user_manager.authenticate(args.username, args.password):
+                print(f"✅ Logged in as {args.username}")
+        else:
+            print("❌ Registration failed")
+            sys.exit(1)
+    
+    elif args.list_users:
+        if not user_manager.current_user:
+            print("❌ Must be logged in to list users")
+            sys.exit(1)
         
-        print("✅ Dependencies installed successfully!")
+        users = user_manager.list_users(user_manager.current_user)
+        if users:
+            print("\n👥 Users:")
+            for user in users:
+                status_icon = "🟢" if user['status'] == 'active' else "🔴" if user['status'] == 'blocked' else "⚫"
+                print(f"  {status_icon} {user['username']} ({user['tier']}) - Status: {user['status']} - Created: {user['created_at']}")
+        else:
+            print("❌ No users found or insufficient permissions")
+    
+    elif args.upgrade_user:
+        if not user_manager.current_user:
+            print("❌ Must be logged in to upgrade users")
+            sys.exit(1)
         
-    except Exception as e:
-        print(f"❌ Installation failed: {e}")
-        sys.exit(1)
-
-
-@cli.command()
-def config():
-    """Setup and manage configuration."""
-    print("🔧 Configuration Management")
-    print("=" * 50)
+        if not args.new_tier:
+            print("❌ --upgrade_user requires --new_tier")
+            sys.exit(1)
+        
+        new_tier = UserTier(args.new_tier)
+        if user_manager.upgrade_user(args.upgrade_user, new_tier, user_manager.current_user):
+            print(f"✅ Upgraded {args.upgrade_user} to {new_tier.value}")
+        else:
+            print("❌ User upgrade failed")
+            sys.exit(1)
     
-    # Create template
-    config_manager.create_env_template()
-    print("✅ Created configuration template: .env.template")
-    print("📝 Edit this file with your actual tokens and settings")
+    elif args.block_user:
+        if not user_manager.current_user:
+            print("❌ Must be logged in to block users")
+            sys.exit(1)
+        
+        if user_manager.block_user(args.block_user, user_manager.current_user):
+            print(f"✅ Blocked user: {args.block_user}")
+        else:
+            print("❌ User blocking failed")
+            sys.exit(1)
     
-    # Print summary
-    config_manager.print_config_summary()
-
-
-@cli.command()
-def debug():
-    """Debug configuration and tokens."""
-    config_manager.debug_tokens()
-
-
-@cli.command()
-def models():
-    """List available models and setup universal authentication."""
-    from .llm.llm_utils import list_available_models, setup_model_authentication
+    elif args.unblock_user:
+        if not user_manager.current_user:
+            print("❌ Must be logged in to unblock users")
+            sys.exit(1)
+        
+        if user_manager.unblock_user(args.unblock_user, user_manager.current_user):
+            print(f"✅ Unblocked user: {args.unblock_user}")
+        else:
+            print("❌ User unblocking failed")
+            sys.exit(1)
     
-    print("🤖 Universal Model Configuration")
-    print("=" * 50)
+    elif args.delete_user:
+        if not user_manager.current_user:
+            print("❌ Must be logged in to delete users")
+            sys.exit(1)
+        
+        if user_manager.delete_user(args.delete_user, user_manager.current_user):
+            print(f"✅ Deleted user: {args.delete_user}")
+        else:
+            print("❌ User deletion failed")
+            sys.exit(1)
     
-    # List available models
-    list_available_models()
+    elif args.usage:
+        if not user_manager.current_user:
+            print("❌ Must be logged in to view usage")
+            sys.exit(1)
+        
+        usage = user_manager.get_usage_summary()
+        if usage:
+            print(f"\n📊 Usage Summary for {usage['username']}:")
+            print(f"  Tier: {usage['tier']}")
+            print(f"  Status: {usage['status']}")
+            print(f"  Support Level: {usage['support_level']}")
+            print(f"  GPU Access: {usage['capabilities']['gpu_access']}")
+            print(f"  GPU Size: {usage['capabilities']['gpu_size']}")
+            print(f"  Context Indexer: {usage['capabilities']['context_indexer_type']}")
+            print(f"  Rate Limit: {usage['capabilities']['rate_limit_per_hour']}/hour")
+            print(f"  Repos Created: {usage['usage']['repos_created']}")
+            print(f"  Agents Used: {usage['usage']['agents_used']}")
+            print(f"  Requests This Hour: {usage['usage']['requests_this_hour']}")
     
-    print("\n" + "=" * 50)
-    
-    # Setup universal authentication
-    setup_model_authentication()
-    
-    print("\n💡 Quick Start:")
-    print("1. Run: repo_runner install")
-    print("2. Run: repo_runner run /path/to/repo")
-    print("3. Models will be configured automatically!")
-
-
-@cli.command()
-def test_models():
-    """Test model availability and configuration."""
-    print("🧪 Testing Model Configuration")
-    print("=" * 50)
-    
-    from .llm.llm_utils import get_model_config, get_llm_pipeline
-    
-    agents = ['detection_agent', 'requirements_agent', 'setup_agent', 
-              'fixer_agent', 'db_agent', 'health_agent', 'runner_agent']
-    
-    for agent in agents:
-        try:
-            config = get_model_config(agent)
-            print(f"\n🔍 Testing {agent}:")
-            print(f"   Model: {config['model_name']}")
-            print(f"   Type: {config.get('type', 'unknown')}")
-            print(f"   Max Tokens: {config['max_tokens']}")
-            
-            # Try to get pipeline
-            pipeline = get_llm_pipeline(agent)
-            print(f"   Status: ✅ Available")
-            
-        except Exception as e:
-            print(f"   Status: ❌ Failed - {e}")
-    
-    print("\n✅ Model testing completed!")
-
-
-@cli.command()
-def status():
-    """Show current configuration status."""
-    print("📊 Configuration Status")
-    print("=" * 50)
-    
-    # Print configuration summary
-    config_manager.print_config_summary()
-    
-    # Check for .env file
-    env_file = Path('.env')
-    if env_file.exists():
-        print(f"\n✅ Configuration file found: {env_file}")
     else:
-        print(f"\n⚠️ No .env file found")
-        print("💡 Run 'repo_runner config' to create one")
-
+        # Main workflow - check authentication
+        if not user_manager.current_user:
+            print("⚠️ Not logged in - using free tier with limited features")
+            print("💡 Use --login or --register to access advanced features")
+        
+        # Check rate limit
+        if not user_manager.check_rate_limit():
+            print("❌ Rate limit exceeded. Please wait or upgrade your tier.")
+            sys.exit(1)
+        
+        # Convert FAISS string to boolean/None
+        use_faiss = None
+        if args.use_faiss == 'true':
+            use_faiss = True
+        elif args.use_faiss == 'false':
+            use_faiss = False
+        # 'auto' and None both result in None (agent recommendation)
+        
+        # Check FAISS permissions
+        if use_faiss and not user_manager.can_use_context_indexer('faiss'):
+            print("❌ FAISS not available for your tier. Upgrading to Advanced or higher required.")
+            sys.exit(1)
+        
+        # Build configuration
+        config = {
+            'repo_path': args.repo_path,
+            'environment': args.env,
+            'model_tier': args.model,
+            'log_level': args.log_level,
+            'checkpoint_dir': args.checkpoint_dir,
+            'skip_agents': args.skip_agents,
+            'faiss': {
+                'use_faiss': use_faiss,
+                'sentence_transformer_model': args.faiss_model
+            }
+        }
+        
+        # Load config file if provided
+        if args.config_file and os.path.exists(args.config_file):
+            config_manager = ConfigManager()
+            file_config = config_manager.load_config(args.config_file)
+            config.update(file_config)
+        
+        # Initialize and run orchestrator
+        try:
+            orchestrator = OrchestratorAgent(config=config)
+            result = orchestrator.run()
+            
+            # Increment usage
+            user_manager.increment_usage('repo')
+            
+            if result.get('status') == 'ok':
+                print("✅ Repo Runner completed successfully!")
+                print(f"📊 Summary: {result.get('summary', 'No summary available')}")
+            else:
+                print(f"❌ Repo Runner failed: {result.get('error', 'Unknown error')}")
+                sys.exit(1)
+                
+        except Exception as e:
+            print(f"❌ Fatal error: {e}")
+            sys.exit(1)
 
 if __name__ == '__main__':
-    cli()
+    main()

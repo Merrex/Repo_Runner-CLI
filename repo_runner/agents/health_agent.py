@@ -13,10 +13,39 @@ class HealthAgent(BaseAgent):
     Agent responsible for health checks and monitoring.
     Uses DependencyAgent for all dependency management (agentic OOP pattern).
     """
-    def __init__(self):
-        super().__init__()
-        self.dependency_agent = DependencyAgent()
+    def __init__(self, config=None):
+        super().__init__(config=config)
+        self.dependency_agent = DependencyAgent(config=config)
         self.dependency_agent.ensure_packages(['requests'], upgrade=False)
+
+    def run(self, *args, **kwargs):
+        """Monitor application health and status"""
+        run_status = kwargs.get('run_status', {})
+        
+        try:
+            # Use the existing health check logic
+            health_result = self.check(run_status)
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "health": health_result,
+                "overall_health": health_result.get('ok', False),
+                "services_checked": len(health_result.get('services', {}))
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
 
     def check(self, run_status):
         """Check the health of the running service(s) using LLM."""

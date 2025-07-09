@@ -12,6 +12,35 @@ class FileAgent(BaseAgent):
     - Any agent in the system can instantiate or receive a FileAgent (or child) to perform file tasks.
     - Top-level agents (OrchestratorAgent, RequirementAgent) can dynamically invoke any agent, including FileAgent, at any checkpoint.
     """
+    def run(self, *args, **kwargs):
+        """Process files and prepare for context indexing"""
+        repo_path = kwargs.get('repo_path', '.')
+        
+        try:
+            # Scan and process files
+            files = self._scan_files(repo_path)
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "files": files,
+                "file_count": len(files),
+                "processed_files": list(files.keys())
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
+
     def write_file(self, path: str, content: str) -> str:
         """Write content to a file (overwrites if exists). Returns the file path."""
         os.makedirs(os.path.dirname(path), exist_ok=True)

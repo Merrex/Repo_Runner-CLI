@@ -1,0 +1,198 @@
+🚀 Complete Tier-Based System Test
+======================================================================
+🧪 Testing Complete Tier-Based System
+============================================================
+
+1️⃣ Creating test users:
+✅ Created free user: free_user
+   free_user (free): ✅
+✅ Created advanced user: advanced_user
+   advanced_user (advanced): ✅
+✅ Created premium user: premium_user
+   premium_user (premium): ✅
+❌ Insufficient permissions to create tester user
+   tester_user (tester): ❌
+❌ Insufficient permissions to create admin user
+   admin_user (admin): ❌
+
+2️⃣ Testing OrchestratorAgent as Single POC:
+   📁 Created test repository: /tmp/test_repo_g2wfb7p1
+
+   🔄 Testing with free_user:
+✅ Authenticated as free_user (free)
+     Tier: free
+     Context Indexer: simple
+     GPU Access: False
+     🚀 Running OrchestratorAgent...
+🔧 Ensuring packages for local environment...
+✅ requests installed successfully
+🔧 Ensuring packages for local environment...
+✅ requests installed successfully
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+🔧 Context Indexer initialized: {'use_faiss': False, 'faiss_available': False, 'chunk_count': 0, 'index_type': 'Simple Text', 'config': {}, 'user_info': {}}
+🚀 Starting Repo Runner Orchestration with FAISS support
+🔍 Phase 1: Environment Detection and Analysis
+✅ Environment detected: local
+✅ Project structure detected
+✅ Requirements analyzed
+📦 Phase 2: Dependency and Setup
+✅ Dependencies processed
+🔧 Using FAISS recommendation from EnvDetectorAgent: {'agent': 'EnvDetectorAgent', 'recommend_faiss': True, 'reason': 'Local environment has 7.2GB RAM, sufficient for FAISS', 'model': 'all-MiniLM-L6-v2'}
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+🔧 Context Indexer initialized: {'use_faiss': False, 'faiss_available': False, 'chunk_count': 0, 'index_type': 'Simple Text', 'config': {'use_faiss': True, 'sentence_transformer_model': 'all-MiniLM-L6-v2'}, 'user_info': {}}
+✅ Updated FAISS configuration based on agent recommendations
+✅ Setup completed
+🗄️ Phase 3: Database and Configuration
+✅ Database setup completed
+✅ Configuration processed
+📁 Phase 4: File Processing and Context Indexing
+✅ Files processed
+🚀 Phase 5: Execution and Health Monitoring
+✅ Application started
+✅ Health check completed
+🔧 Phase 6: Error Handling and Fixes
+✅ Orchestration completed successfully
+     ❌ Orchestration failed: Unknown error
+     ⏱️ Testing rate limiting...
+       Request 1: ✅
+       Request 2: ✅
+       Request 3: ✅
+       Request 4: ✅
+       Request 5: ✅
+
+   🔄 Testing with advanced_user:
+✅ Authenticated as advanced_user (advanced)
+     Tier: advanced
+     Context Indexer: faiss
+     GPU Access: True
+     🚀 Running OrchestratorAgent...
+🔧 Ensuring packages for local environment...
+✅ requests installed successfully
+🔧 Ensuring packages for local environment...
+✅ requests installed successfully
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+🔧 Context Indexer initialized: {'use_faiss': False, 'faiss_available': False, 'chunk_count': 0, 'index_type': 'Simple Text', 'config': {}, 'user_info': {}}
+🚀 Starting Repo Runner Orchestration with FAISS support
+🔍 Phase 1: Environment Detection and Analysis
+✅ Environment detected: local
+✅ Project structure detected
+✅ Requirements analyzed
+📦 Phase 2: Dependency and Setup
+✅ Dependencies processed
+🔧 Using FAISS recommendation from EnvDetectorAgent: {'agent': 'EnvDetectorAgent', 'recommend_faiss': True, 'reason': 'Local environment has 7.2GB RAM, sufficient for FAISS', 'model': 'all-MiniLM-L6-v2'}
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+🔧 Context Indexer initialized: {'use_faiss': False, 'faiss_available': False, 'chunk_count': 0, 'index_type': 'Simple Text', 'config': {'use_faiss': True, 'sentence_transformer_model': 'all-MiniLM-L6-v2'}, 'user_info': {}}
+✅ Updated FAISS configuration based on agent recommendations
+✅ Setup completed
+🗄️ Phase 3: Database and Configuration
+✅ Database setup completed
+✅ Configuration processed
+📁 Phase 4: File Processing and Context Indexing
+✅ Files processed
+🚀 Phase 5: Execution and Health Monitoring
+✅ Application started
+✅ Health check completed
+🔧 Phase 6: Error Handling and Fixes
+✅ Orchestration completed successfully
+     ❌ Orchestration failed: Unknown error
+     ⏱️ Testing rate limiting...
+       Request 1: ✅
+       Request 2: ✅
+       Request 3: ✅
+       Request 4: ✅
+       Request 5: ✅
+
+   🔄 Testing with premium_user:
+✅ Authenticated as premium_user (premium)
+     Tier: premium
+     Context Indexer: chroma
+     GPU Access: True
+     🚀 Running OrchestratorAgent...
+🔧 Ensuring packages for local environment...
+✅ requests installed successfully
+🔧 Ensuring packages for local environment...
+✅ requests installed successfully
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+🔧 Context Indexer initialized: {'use_faiss': False, 'faiss_available': False, 'chunk_count': 0, 'index_type': 'Simple Text', 'config': {}, 'user_info': {}}
+🚀 Starting Repo Runner Orchestration with FAISS support
+🔍 Phase 1: Environment Detection and Analysis
+✅ Environment detected: local
+✅ Project structure detected
+✅ Requirements analyzed
+📦 Phase 2: Dependency and Setup
+✅ Dependencies processed
+🔧 Using FAISS recommendation from EnvDetectorAgent: {'agent': 'EnvDetectorAgent', 'recommend_faiss': True, 'reason': 'Local environment has 7.2GB RAM, sufficient for FAISS', 'model': 'all-MiniLM-L6-v2'}
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+🔧 Context Indexer initialized: {'use_faiss': False, 'faiss_available': False, 'chunk_count': 0, 'index_type': 'Simple Text', 'config': {'use_faiss': True, 'sentence_transformer_model': 'all-MiniLM-L6-v2'}, 'user_info': {}}
+✅ Updated FAISS configuration based on agent recommendations
+✅ Setup completed
+🗄️ Phase 3: Database and Configuration
+✅ Database setup completed
+✅ Configuration processed
+📁 Phase 4: File Processing and Context Indexing
+✅ Files processed
+🚀 Phase 5: Execution and Health Monitoring
+✅ Application started
+✅ Health check completed
+🔧 Phase 6: Error Handling and Fixes
+✅ Orchestration completed successfully
+     ❌ Orchestration failed: Unknown error
+     ⏱️ Testing rate limiting...
+       Request 1: ✅
+       Request 2: ✅
+       Request 3: ✅
+       Request 4: ✅
+       Request 5: ✅
+   🧹 Cleaned up test repository
+
+3️⃣ Testing Admin Functions:
+❌ User 'admin_user' not found
+✅ Authenticated as free_user (free)
+❌ Insufficient permissions to list users
+   ✅ Non-admin correctly denied user listing
+
+4️⃣ Testing Context Indexer Tier Restrictions:
+
+   Testing free_user:
+✅ Authenticated as free_user (free)
+     simple: ✅
+     faiss: ❌
+     chroma: ❌
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+     Selected indexer: Simple Text
+     User tier: unknown
+
+   Testing advanced_user:
+✅ Authenticated as advanced_user (advanced)
+     simple: ✅
+     faiss: ✅
+     chroma: ❌
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+     Selected indexer: Simple Text
+     User tier: unknown
+
+   Testing premium_user:
+✅ Authenticated as premium_user (premium)
+     simple: ✅
+     faiss: ✅
+     chroma: ✅
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search
+     Selected indexer: Simple Text
+     User tier: unknown
+
+5️⃣ Testing Workflow Completion:
+   📁 Test repository: /tmp/test_repo_7krvkvo2
+   🚀 Running complete workflow...
+🔧 Ensuring packages for local environment...
+✅ requests installed successfully
+⚠️ FAISS not available: No module named 'faiss'
+🔄 Falling back to simple text search

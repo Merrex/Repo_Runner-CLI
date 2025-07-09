@@ -80,20 +80,38 @@ class FixerAgent(BaseAgent):
         super().__init__(*args, **kwargs)
         self.memory_manager = AgentMemoryManager()
 
-    def run(self, repo_path=None, errors=None, context=None, *args, **kwargs):
-        # Analyze errors and suggest fixes
-        suggestions = []
-        actions = []
-        if not errors:
-            self.log_result("[FixerAgent] No errors to fix.")
-            return {"status": "ok", "agent": self.agent_name, "suggestions": [], "actions": []}
-        for err in errors:
-            suggestion = self._suggest_fix(err, repo_path)
-            suggestions.append(suggestion)
-            action = self._apply_fix(suggestion, repo_path)
-            actions.append(action)
-        self.log_result(f"[FixerAgent] Suggestions: {suggestions}, Actions: {actions}")
-        return {"status": "ok", "agent": self.agent_name, "suggestions": suggestions, "actions": actions}
+    def run(self, *args, **kwargs):
+        """Detect and resolve errors autonomously"""
+        errors = kwargs.get('errors', [])
+        
+        try:
+            fixes_applied = []
+            
+            for error in errors:
+                fix_result = self._apply_fix(error)
+                if fix_result:
+                    fixes_applied.append(fix_result)
+            
+            result = {
+                "status": "ok",
+                "agent": self.agent_name,
+                "fixes": fixes_applied,
+                "fixes_applied": len(fixes_applied),
+                "errors_processed": len(errors)
+            }
+            
+            # Save checkpoint
+            self.checkpoint(result)
+            return result
+            
+        except Exception as e:
+            error_result = {
+                "status": "error",
+                "agent": self.agent_name,
+                "error": str(e)
+            }
+            self.report_error(e)
+            return error_result
 
     def _suggest_fix(self, error, repo_path):
         # Stub: Use LLM or RAG to suggest fix
