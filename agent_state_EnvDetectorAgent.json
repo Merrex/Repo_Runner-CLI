@@ -1,8 +1,8 @@
 {
+  "status": "ok",
+  "agent": "EnvDetectorAgent",
   "environment": "local",
-  "evidence": [
-    "No cloud env vars detected; assuming local"
-  ],
+  "evidence": [],
   "recommendations": {
     "recommend_faiss": true,
     "reason": "Local environment has 7.2GB RAM, sufficient for FAISS",

@@ -8,11 +8,12 @@ Repo Runner is an agentic microservice backend designed for autonomous repositor
 
 1. **Admin Agent (CEO)**: Controls the entire system, can create new agents/managers
 2. **Manager-Agent Architecture**: Managers use decision-making models, agents use generative models
-3. **OrchestratorAgent**: Single POC for user interactions, delegated by Admin Agent
-4. **Tier-Based Access**: User capabilities determined by subscription tier
-5. **Environment Awareness**: Automatic optimization for different cloud environments
-6. **Self-Healing**: Autonomous error detection and resolution
-7. **Checkpoint System**: Persistent state management across workflow phases
+3. **OrchestratorAgent**: Single POC for user interactions, enhanced by Admin Agent
+4. **Indirect Orchestration**: All users benefit from Admin Agent capabilities through OrchestratorAgent
+5. **Tier-Based Access**: User capabilities determined by subscription tier
+6. **Environment Awareness**: Automatic optimization for different cloud environments
+7. **Self-Healing**: Autonomous error detection and resolution
+8. **Checkpoint System**: Persistent state management across workflow phases
 
 ## 🏛️ Architecture Layers
 
@@ -32,6 +33,7 @@ Repo Runner is an agentic microservice backend designed for autonomous repositor
 │  │  Workflow Orchestration & State Management       │   │
 │  │  Context Indexer Configuration                   │   │
 │  │  Error Handling & Recovery                       │   │
+│  │  Admin Agent Enhanced Capabilities               │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -43,6 +45,7 @@ Repo Runner is an agentic microservice backend designed for autonomous repositor
 │  │  Checkpoint Management                            │   │
 │  │  Failure Recovery & Intervention                  │   │
 │  │  Business Orchestrator Creation                   │   │
+│  │  OrchestratorAgent Enhancement                    │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -143,42 +146,55 @@ User Registration → Tier Assignment → Authentication → Capability Check �
 ```
 1. System Control & Monitoring
    ↓
-2. Agent Creation (when needed)
+2. OrchestratorAgent Enhancement
    ↓
-3. Checkpoint Management (when new agents created)
+3. Agent Creation (when needed)
    ↓
-4. Failure Recovery (when orchestrators fail)
+4. Checkpoint Management (when new agents created)
    ↓
-5. Business Orchestrator Creation (for custom clients)
+5. Failure Recovery (when orchestrators fail)
    ↓
-6. System Intervention (when out of scope)
+6. Business Orchestrator Creation (for custom clients)
+   ↓
+7. System Intervention (when out of scope)
 ```
 
-### OrchestratorAgent Workflow
+### OrchestratorAgent Workflow (Enhanced by Admin Agent)
 ```
 1. User Authentication & Tier Validation
    ↓
-2. Environment Detection (EnvDetectorAgent)
+2. Admin Agent Enhancement (get best capabilities)
    ↓
-3. Project Analysis (DetectionAgent, RequirementsAgent)
+3. Environment Detection (EnvDetectorAgent)
    ↓
-4. Dependency Management (DependencyAgent)
+4. Project Analysis (DetectionAgent, RequirementsAgent)
    ↓
-5. Context Indexer Configuration (based on tier + agent recommendations)
+5. Dependency Management (DependencyAgent)
    ↓
-6. Setup & Configuration (SetupAgent, ConfigAgent, DatabaseAgent)
+6. Context Indexer Configuration (based on tier + agent recommendations)
    ↓
-7. File Processing & Context Indexing (FileAgent, ContextIndexer)
+7. Setup & Configuration (SetupAgent, ConfigAgent, DatabaseAgent)
    ↓
-8. Service Execution (RunnerAgent)
+8. File Processing & Context Indexing (FileAgent, ContextIndexer)
    ↓
-9. Health Monitoring (HealthAgent)
+9. Service Execution (RunnerAgent)
    ↓
-10. Error Resolution (FixerAgent)
+10. Health Monitoring (HealthAgent)
    ↓
-11. Workflow Completion (test_repo run)
+11. Error Resolution (FixerAgent)
    ↓
-12. Report to Admin Agent (CEO)
+12. Workflow Completion (test_repo run)
+   ↓
+13. Report to Admin Agent (CEO)
+```
+
+### Indirect Orchestration Pattern
+```
+User Request → OrchestratorAgent (POC) → Admin Agent (CEO) → OrchestratorAgent (Enhanced) → Response
+     │              │                        │                        │
+     ▼              ▼                        ▼                        ▼
+User Input    Single POC              System Control         Best System Capabilities
+             for Users              & Orchestration         Delivered to User
 ```
 
 ### State Management

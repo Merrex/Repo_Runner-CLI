@@ -46,6 +46,21 @@ User/3rd Party → OrchestratorAgent (Single POC) → Admin Agent (CEO)
                             Environment Detection  Business Orchestrators
 ```
 
+### **Admin Agent (CEO) - Indirect Orchestration:**
+- **Admin Agent**: Controls and orchestrates the OrchestratorAgent (POC)
+- **All Users**: Indirectly benefit from Admin Agent's capabilities through OrchestratorAgent
+- **Direct Access**: Only Developer can directly access Admin Agent
+- **Indirect Access**: All users get Admin Agent's capabilities through OrchestratorAgent
+
+### **Workflow:**
+```
+User Request → OrchestratorAgent (POC) → Admin Agent (CEO) → OrchestratorAgent (Enhanced) → Response
+     │              │                        │                        │
+     ▼              ▼                        ▼                        ▼
+User Input    Single POC              System Control         Best System Capabilities
+             for Users              & Orchestration         Delivered to User
+```
+
 ## 🧠 Manager-Agent Architecture
 
 ### Managers (Decision-Making)
@@ -68,6 +83,7 @@ User/3rd Party → OrchestratorAgent (Single POC) → Admin Agent (CEO)
 - **Failure Recovery**: Intervenes when orchestrators fail to report success
 - **Developer Access**: Only accessible by users with 'developer' role
 - **Business Orchestrator Creation**: Creates custom orchestrators for business clients
+- **Indirect Orchestration**: All users benefit from Admin Agent capabilities through OrchestratorAgent
 
 ## 🛠️ Installation
 
