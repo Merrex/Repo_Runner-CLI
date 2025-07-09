@@ -114,15 +114,188 @@ class FixerAgent(BaseAgent):
             return error_result
 
     def _suggest_fix(self, error, repo_path):
-        # Stub: Use LLM or RAG to suggest fix
-        # In production, call LLM or RAG here
-        return f"Suggested fix for: {error[:100]}"
+        """Use LLM to suggest a fix for the given error."""
+        try:
+            # Build context from repository files
+            context = self._build_error_context(repo_path, error)
+            
+            prompt = f"""
+            Analyze this error and provide a specific fix:
+            
+            Error: {error}
+            Repository Context: {context}
+            
+            Provide a detailed fix including:
+            1. Root cause analysis
+            2. Specific code changes needed
+            3. Configuration updates required
+            4. Steps to implement the fix
+            
+            Format as JSON with keys: analysis, fix, steps, files_to_modify
+            """
+            
+            llm_response = generate_code_with_llm(prompt, agent_name='fixer_agent')
+            
+            try:
+                # Try to parse JSON response
+                fix_data = json.loads(llm_response)
+                return fix_data
+            except json.JSONDecodeError:
+                # If LLM didn't return valid JSON, create a structured response
+                return {
+                    'analysis': f'Error analysis: {error[:100]}',
+                    'fix': llm_response,
+                    'steps': ['Manual review required'],
+                    'files_to_modify': []
+                }
+                
+        except Exception as e:
+            self.log_result(f"Fix suggestion failed: {e}")
+            return {
+                'analysis': f'Error: {error}',
+                'fix': 'Manual intervention required',
+                'steps': ['Check logs for details'],
+                'files_to_modify': []
+            }
 
-    def _apply_fix(self, suggestion, repo_path):
-        # Stub: Optionally apply fix
-        # In production, parse suggestion and apply code change
-        return f"Applied: {suggestion}"
+    def _apply_fix(self, fix_data, repo_path):
+        """Apply the suggested fix to the repository."""
+        try:
+            if not isinstance(fix_data, dict):
+                self.log_result("Invalid fix data format")
+                return False
+            
+            fix = fix_data.get('fix', '')
+            files_to_modify = fix_data.get('files_to_modify', [])
+            steps = fix_data.get('steps', [])
+            
+            # Log the fix attempt
+            self.log_result(f"Applying fix: {fix[:100]}...")
+            
+            # Apply file modifications if specified
+            for file_info in files_to_modify:
+                if isinstance(file_info, dict):
+                    file_path = file_info.get('path')
+                    content = file_info.get('content')
+                    operation = file_info.get('operation', 'replace')
+                    
+                    if file_path and content:
+                        self._apply_file_change(repo_path, file_path, content, operation)
+            
+            # Execute fix steps
+            for step in steps:
+                if step.startswith('command:'):
+                    command = step.replace('command:', '').strip()
+                    self._execute_fix_command(repo_path, command)
+                elif step.startswith('install:'):
+                    package = step.replace('install:', '').strip()
+                    self._install_package(repo_path, package)
+            
+            self.log_result("✅ Fix applied successfully")
+            return True
+            
+        except Exception as e:
+            self.log_result(f"❌ Fix application failed: {e}")
+            return False
 
+    def _build_error_context(self, repo_path, error):
+        """Build context from repository files for error analysis."""
+        context_files = []
+        
+        # Common files that might be relevant
+        relevant_files = [
+            'requirements.txt', 'package.json', 'docker-compose.yml', 
+            'Dockerfile', '.env', 'README.md', 'main.py', 'app.py'
+        ]
+        
+        for file_name in relevant_files:
+            file_path = os.path.join(repo_path, file_name)
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        context_files.append(f"{file_name}:\n{content[:500]}")
+                except Exception:
+                    pass
+        
+        return "\n\n".join(context_files)
+
+    def _apply_file_change(self, repo_path, file_path, content, operation):
+        """Apply a change to a specific file."""
+        full_path = os.path.join(repo_path, file_path)
+        
+        try:
+            if operation == 'replace':
+                with open(full_path, 'w') as f:
+                    f.write(content)
+            elif operation == 'append':
+                with open(full_path, 'a') as f:
+                    f.write(f"\n{content}")
+            elif operation == 'insert':
+                # Insert at specific line (simplified)
+                with open(full_path, 'r') as f:
+                    lines = f.readlines()
+                
+                # Simple insertion at line 1 (after imports)
+                lines.insert(1, content + '\n')
+                
+                with open(full_path, 'w') as f:
+                    f.writelines(lines)
+                    
+            self.log_result(f"✅ Modified {file_path}")
+            
+        except Exception as e:
+            self.log_result(f"❌ Failed to modify {file_path}: {e}")
+
+    def _execute_fix_command(self, repo_path, command):
+        """Execute a command as part of the fix."""
+        try:
+            import subprocess
+            result = subprocess.run(
+                command.split(),
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if result.returncode == 0:
+                self.log_result(f"✅ Command executed: {command}")
+            else:
+                self.log_result(f"⚠️ Command failed: {command} - {result.stderr}")
+                
+        except Exception as e:
+            self.log_result(f"❌ Command execution failed: {command} - {e}")
+
+    def _install_package(self, repo_path, package):
+        """Install a package as part of the fix."""
+        try:
+            import subprocess
+            
+            # Determine package manager
+            if os.path.exists(os.path.join(repo_path, 'package.json')):
+                cmd = ['npm', 'install', package]
+            elif os.path.exists(os.path.join(repo_path, 'requirements.txt')):
+                cmd = ['pip', 'install', package]
+            else:
+                cmd = ['pip', 'install', package]
+            
+            result = subprocess.run(
+                cmd,
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            if result.returncode == 0:
+                self.log_result(f"✅ Installed package: {package}")
+            else:
+                self.log_result(f"⚠️ Package installation failed: {package} - {result.stderr}")
+                
+        except Exception as e:
+            self.log_result(f"❌ Package installation failed: {package} - {e}")
+    
     def fix(self, errors, structure):
         """Use WizardCoder to analyze and fix errors."""
         if not errors:

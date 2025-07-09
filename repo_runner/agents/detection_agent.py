@@ -433,7 +433,7 @@ class DetectionAgent(BaseAgent):
         
         return {
             'type': 'auto-detected',
-            'technologies': ['Python', 'Docker'],  # Placeholder
+            'technologies': self._detect_technologies(files),
             'files': files,
             'analysis': analysis,
             'missing_files': self._detect_missing_files(files),
@@ -477,7 +477,53 @@ class DetectionAgent(BaseAgent):
             if file not in files:
                 missing.append(file)
         
-        return missing 
+        return missing
+
+    def _detect_technologies(self, files):
+        """Detect technologies based on file patterns."""
+        technologies = []
+        
+        # Python detection
+        if any(f.endswith('.py') for f in files.keys()):
+            technologies.append('Python')
+        
+        # Node.js detection
+        if 'package.json' in files:
+            technologies.append('Node.js')
+        
+        # React detection
+        if any('react' in f.lower() for f in files.keys()) or any('jsx' in f.lower() for f in files.keys()):
+            technologies.append('React')
+        
+        # Vue detection
+        if any('vue' in f.lower() for f in files.keys()):
+            technologies.append('Vue')
+        
+        # Docker detection
+        if 'Dockerfile' in files or 'docker-compose.yml' in files:
+            technologies.append('Docker')
+        
+        # Django detection
+        if 'manage.py' in files:
+            technologies.append('Django')
+        
+        # Flask detection
+        if any('flask' in f.lower() for f in files.keys()):
+            technologies.append('Flask')
+        
+        # FastAPI detection
+        if any('fastapi' in f.lower() for f in files.keys()):
+            technologies.append('FastAPI')
+        
+        # Database detection
+        if any('sqlite' in f.lower() for f in files.keys()):
+            technologies.append('SQLite')
+        if any('postgres' in f.lower() for f in files.keys()):
+            technologies.append('PostgreSQL')
+        if any('mysql' in f.lower() for f in files.keys()):
+            technologies.append('MySQL')
+        
+        return technologies 
 
     def run(self, *args, **kwargs):
         """Detect project structure and analyze repository"""

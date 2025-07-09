@@ -150,6 +150,28 @@ class ContextIndexer:
             self.faiss_available = False
             self.use_faiss = False
 
+    def _init_chroma(self):
+        """Initialize Chroma if available."""
+        try:
+            import chromadb
+            from chromadb.config import Settings
+            
+            # Check if dependencies are available
+            self.chroma_available = True
+            self.chroma_client = chromadb.Client(Settings(
+                chroma_db_impl="duckdb+parquet",
+                persist_directory="./chroma_db"
+            ))
+            
+            print("✅ Chroma available")
+            
+        except ImportError as e:
+            print(f"⚠️ Chroma not available: {e}")
+            self.chroma_available = False
+        except Exception as e:
+            print(f"⚠️ Chroma initialization failed: {e}")
+            self.chroma_available = False
+
     def _read_files(self, file_paths: List[str]) -> List[Tuple[str, str]]:
         """
         Reads and splits files into (source, chunk) tuples.

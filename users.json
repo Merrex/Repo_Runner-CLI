@@ -1,0 +1,18 @@
+{
+  "test_user": {
+    "username": "test_user",
+    "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+    "tier": "advanced",
+    "email": null,
+    "created_at": "2025-07-09T07:00:18.197732",
+    "created_by": null,
+    "last_login": "2025-07-09T07:00:18.198301",
+    "status": "active",
+    "usage_stats": {
+      "repos_created": 0,
+      "agents_used": 0,
+      "requests_this_hour": 0,
+      "last_request_time": null
+    }
+  }
+}
